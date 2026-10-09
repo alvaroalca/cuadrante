@@ -1,0 +1,19 @@
+[project]
+name = "motor"
+version = "0.1.0"
+description = "Motor de Cuadrante: lectura de convenios del BOE y solver de turnos con OR-Tools"
+authors = [
+    { name = "alvaroalcarazperez", email = "alvaroalca@hotmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "ortools>=9.15.6755",
+    "pydantic>=2.14.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"

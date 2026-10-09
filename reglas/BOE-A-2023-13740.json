@@ -1,0 +1,217 @@
+{
+  "boe": "BOE-A-2023-13740",
+  "nombre": "Grandes almacenes",
+  "reglas": [
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1770,
+      "unidad": "horas",
+      "periodo": "año",
+      "cita": {
+        "articulo": "26",
+        "texto": "La jornada de trabajo efectivo máxima laboral convencional anual, a partir del 1 de enero de 2023 será de 1770 horas de trabajo efectivo"
+      }
+    },
+    {
+      "tipo": "descanso_semanal_min",
+      "valor": 1.5,
+      "unidad": "dias",
+      "periodo": "semana",
+      "cita": {
+        "articulo": "30.1",
+        "texto": "Las personas trabajadoras tendrán derecho a un descanso mínimo semanal de día y medio ininterrumpido."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "El medio día de descanso semanal puede acumularse en períodos de hasta cuatro semanas o separarse del día completo para disfrutarlo otro día de la semana",
+      "cita": {
+        "articulo": "30.2",
+        "texto": "el descanso del medio día semanal podrá acumularse en períodos de hasta cuatro semanas o separarse del día completo para su disfrute en otro día de la semana"
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "El día completo de descanso semanal puede acumularse dentro de un ciclo no superior a catorce días",
+      "cita": {
+        "articulo": "30.2",
+        "texto": "el día completo de descanso semanal, que podrá disfrutarse cualquier día de la semana, podrá acumularse dentro de un ciclo no superior a catorce días"
+      }
+    },
+    {
+      "tipo": "dias_consecutivos_max",
+      "valor": 10,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "30.3",
+        "texto": "las personas trabajadoras no podrán ser programados como trabajo ordinario más de diez días consecutivos de trabajo"
+      }
+    },
+    {
+      "tipo": "dias_consecutivos_max",
+      "valor": 11,
+      "unidad": "dias",
+      "condicion": "Cadencia regular de concentración de tiempos de descanso o períodos de mayor actividad del año comunicados previamente a la representación de las personas trabajadoras",
+      "cita": {
+        "articulo": "30.3",
+        "texto": "salvo que forme parte de una cadencia regular de concentración de tiempos de descanso o se trate de períodos de mayor actividad del año, que deberán ser comunicados previamente a la representación de las personas trabajadoras, en cuyo caso el límite será de 11"
+      }
+    },
+    {
+      "tipo": "pausa_jornada_partida",
+      "valor": 2,
+      "valor_max": 4,
+      "unidad": "horas",
+      "pactable": "individual",
+      "cita": {
+        "articulo": "30.4",
+        "texto": "La interrupción en jornadas partidas, salvo pacto de las partes, será al menos de dos horas y como máximo de cuatro horas."
+      },
+      "cita_pacto": {
+        "articulo": "30.4",
+        "texto": "salvo pacto de las partes"
+      }
+    },
+    {
+      "tipo": "fines_semana_libres_min",
+      "valor": 7,
+      "unidad": "veces",
+      "periodo": "año",
+      "vigente_desde": 2024,
+      "condicion": "Personas trabajadoras con más de cinco días de promedio de trabajo a la semana",
+      "cita": {
+        "articulo": "30.5",
+        "texto": "Año 2024: 7 sábados y domingos de descanso."
+      }
+    },
+    {
+      "tipo": "fines_semana_libres_min",
+      "valor": 8,
+      "unidad": "veces",
+      "periodo": "año",
+      "vigente_desde": 2025,
+      "condicion": "Personas trabajadoras con más de cinco días de promedio de trabajo a la semana",
+      "cita": {
+        "articulo": "30.5",
+        "texto": "Año 2025: 8 sábados y domingos de descanso."
+      }
+    },
+    {
+      "tipo": "fines_semana_libres_min",
+      "valor": 9,
+      "unidad": "veces",
+      "periodo": "año",
+      "vigente_desde": 2026,
+      "condicion": "Personas trabajadoras con más de cinco días de promedio de trabajo a la semana",
+      "cita": {
+        "articulo": "30.5",
+        "texto": "Año 2026: 9 sábados y domingos de descanso."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "En zonas de apertura generalizada, un fin de semana adicional de descanso respecto al escalado general del art. 30.5, desde 2024",
+      "condicion": "Personas trabajadoras con más de cinco días de promedio de trabajo a la semana en zonas de apertura generalizada, años 2024 y 2025",
+      "cita": {
+        "articulo": "30.5",
+        "texto": "Las personas trabajadoras descritas en el presente artículo que presten servicios en zonas de apertura generalizada disfrutarán, a partir del año 2024, de un descanso de sábado y domingo adicional a los arriba establecidos"
+      }
+    },
+    {
+      "tipo": "fines_semana_libres_min",
+      "valor": 10,
+      "unidad": "veces",
+      "periodo": "año",
+      "vigente_desde": 2026,
+      "condicion": "Personas trabajadoras con más de cinco días de promedio de trabajo a la semana en zonas de apertura generalizada",
+      "cita": {
+        "articulo": "30.5",
+        "texto": "alcanzando en el año 2026 la cifra de 10 sábados y domingo de descanso"
+      }
+    },
+    {
+      "tipo": "domingos_festivos_trabajo_max",
+      "valor": 22,
+      "unidad": "veces",
+      "periodo": "año",
+      "vigente_desde": 2024,
+      "condicion": "Personas trabajadoras con más de tres días de promedio anual de trabajo a la semana en zonas de apertura generalizada",
+      "cita": {
+        "articulo": "31",
+        "texto": "a partir del año 2024 las personas trabajadoras con más de tres días de promedio anual de trabajo a la semana no tendrán obligación de trabajar en domingos o festivos, en centros o establecimientos abiertos al público más allá de 22 domingos y festivo en zonas de apertura generalizada"
+      }
+    },
+    {
+      "tipo": "preaviso_cambio_min",
+      "valor": 10,
+      "unidad": "dias",
+      "condicion": "Personas trabajadoras a tiempo parcial en líneas de caja exceptuadas de cuadros horarios generales",
+      "pactable": "colectivo",
+      "cita": {
+        "articulo": "27.6",
+        "texto": "deberán conocer los horarios mensuales al menos con diez días naturales de antelación al inicio del mes"
+      },
+      "cita_pacto": {
+        "articulo": "27.6",
+        "texto": "Por acuerdo con la representación de las personas trabajadoras en el ámbito de la empresa se podrá excepcionar a las personas trabajadoras a tiempo parcial que presten su servicio en las líneas de caja"
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Jornada de tiempo parcial de 4 horas o menos se realiza de forma continuada (sin partirla)",
+      "condicion": "Personas trabajadoras a tiempo parcial con jornada que no exceda de 4 horas",
+      "cita": {
+        "articulo": "27.5",
+        "texto": "La jornada ordinaria correspondiente a las personas trabajadoras a tiempo parcial que no exceda de 4 horas, se realizará de forma continuada."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "En apertura no generalizada con hasta 15 días de apertura en domingos y festivos al año, obligación de trabajar máximo el 50% de los que la empresa decida abrir",
+      "condicion": "Apertura no generalizada, hasta 15 días de apertura al año, personas trabajadoras con más de tres días de promedio anual de trabajo a la semana",
+      "vigente_desde": 2024,
+      "cita": {
+        "articulo": "31",
+        "texto": "Hasta quince (inclusive) días de actividad en domingos y festivos al año de apertura al público, estas personas trabajadoras no tendrán obligación de trabajar más que el 50% de los domingos y festivos que en el año la empresa decida abrir al público el centro o establecimiento en cuestión"
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "En apertura no generalizada con 16 a 25 días de apertura en domingos y festivos al año, obligación de trabajar máximo el 40%",
+      "condicion": "Apertura no generalizada, de 16 a 25 aperturas al año, personas trabajadoras con más de tres días de promedio anual de trabajo a la semana",
+      "vigente_desde": 2024,
+      "cita": {
+        "articulo": "31",
+        "texto": "De dieciséis a veinticinco aperturas al año, el porcentaje será del 40% de domingos y/o festivos a trabajar."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "En apertura no generalizada con más de 25 días de apertura en domingos y festivos al año, obligación de trabajar máximo el 30% con un mínimo de 10",
+      "condicion": "Apertura no generalizada, más de 25 aperturas al año, personas trabajadoras con más de tres días de promedio anual de trabajo a la semana",
+      "vigente_desde": 2024,
+      "cita": {
+        "articulo": "31",
+        "texto": "Por encima de 25 días de aperturas al año, el porcentaje será del 30% con un mínimo de 10 domingos y/o festivos a trabajar."
+      }
+    },
+    {
+      "tipo": "complementarias_pactadas_max_pct",
+      "valor": 60,
+      "unidad": "porcentaje",
+      "cita": {
+        "articulo": "10",
+        "texto": "El pacto de horas complementarias, cuando legalmente sea posible, podrá alcanzar al 60 % de las horas ordinarias contratadas."
+      }
+    },
+    {
+      "tipo": "complementarias_voluntarias_max_pct",
+      "valor": 30,
+      "unidad": "porcentaje",
+      "cita": {
+        "articulo": "10",
+        "texto": "las empresas podrán ofrecer a las personas trabajadoras la realización de horas complementarias de aceptación voluntaria, cuyo número no podrá superar el treinta por ciento de las horas ordinarias objeto del contrato"
+      }
+    }
+  ]
+}

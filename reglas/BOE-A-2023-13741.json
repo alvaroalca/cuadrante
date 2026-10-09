@@ -1,0 +1,224 @@
+{
+  "boe": "BOE-A-2023-13741",
+  "nombre": "Contact center",
+  "reglas": [
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1764,
+      "unidad": "horas",
+      "periodo": "año",
+      "cita": {
+        "articulo": "22",
+        "texto": "la duración máxima de la jornada ordinaria de trabajo en cómputo anual será de mil setecientas sesenta y cuatro horas"
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1597,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Empresas que abonen un salario inferior al previsto en el convenio sectorial para su grupo y nivel",
+      "cita": {
+        "articulo": "22",
+        "texto": "la jornada anual máxima para dichas empresas será de 1597 horas de trabajo efectivo para las personas trabajadoras contratadas a tiempo completo"
+      }
+    },
+    {
+      "tipo": "horas_semana_promedio_max",
+      "valor": 39,
+      "unidad": "horas",
+      "periodo": "semana",
+      "cita": {
+        "articulo": "22",
+        "texto": "39 horas semanales de trabajo efectivo"
+      }
+    },
+    {
+      "tipo": "horas_semana_tope",
+      "valor": 48,
+      "unidad": "horas",
+      "periodo": "semana",
+      "cita": {
+        "articulo": "23",
+        "texto": "El número de horas semanales de trabajo efectivo no podrá ser superior a 48 horas"
+      }
+    },
+    {
+      "tipo": "dias_libres_min_en_ventana",
+      "valor": 3,
+      "unidad": "dias",
+      "periodo": "ventana",
+      "ventana_dias": 14,
+      "cita": {
+        "articulo": "23",
+        "texto": "El descanso semanal podrá acumularse por periodos de hasta catorce días, dentro de los cuales siempre habrá un descanso mínimo de tres días"
+      },
+      "pactable": "individual",
+      "cita_pacto": {
+        "articulo": "23",
+        "texto": "Por acuerdo individual o colectivo se podrá establecer otro sistema de libranza."
+      }
+    },
+    {
+      "tipo": "dias_consecutivos_max",
+      "valor": 8,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "23",
+        "texto": "siendo el límite máximo de trabajo sin descanso de ocho días"
+      }
+    },
+    {
+      "tipo": "dias_libres_min_en_ventana",
+      "valor": 1,
+      "unidad": "dias",
+      "periodo": "ventana",
+      "ventana_dias": 7,
+      "cita": {
+        "articulo": "23",
+        "texto": "las personas trabajadoras disfrutarán, en cada periodo de siete días, como mínimo de un día de descanso, de los tres correspondientes a cada periodo de 14 días"
+      }
+    },
+    {
+      "tipo": "fines_semana_libres_min",
+      "valor": 2,
+      "unidad": "veces",
+      "periodo": "mes",
+      "cita": {
+        "articulo": "25",
+        "texto": "Se garantizará a cada persona contratada el disfrute de dos fines de semana al mes."
+      }
+    },
+    {
+      "tipo": "descanso_compensatorio_festivo",
+      "valor": 1,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "49",
+        "texto": "Quien preste sus servicios en cualquiera de los 14 días festivos anuales, con independencia de la compensación de un día libre retribuido"
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "mañana",
+      "desde": "07:00",
+      "hasta": "16:00",
+      "cita": {
+        "articulo": "26",
+        "texto": "Turno de mañana: no podrá comenzar antes de las 07:00 horas ni terminar después de las 16:00 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "tarde",
+      "desde": "15:00",
+      "hasta": "24:00",
+      "cita": {
+        "articulo": "26",
+        "texto": "Turno de tarde: no podrá comenzar antes de las 15:00 horas, ni terminar después de las 24:00 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "noche",
+      "desde": "22:00",
+      "hasta": "08:00",
+      "cita": {
+        "articulo": "26",
+        "texto": "Turno noche: no podrá comenzar antes de las 22:00 horas, ni terminar después de las 08:00 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "partido",
+      "desde": "09:00",
+      "hasta": "20:00",
+      "cita": {
+        "articulo": "26",
+        "texto": "Turno partido: no podrá comenzar antes de las 09:00 horas, ni terminar después de las 20:00 horas"
+      }
+    },
+    {
+      "tipo": "pausa_jornada_partida",
+      "valor_max": 2,
+      "unidad": "horas",
+      "pactable": "individual",
+      "cita": {
+        "articulo": "26",
+        "texto": "en este turno no podrá mediar entre el final de la primera parte y el principio de la segunda, más de dos horas"
+      },
+      "cita_pacto": {
+        "articulo": "26",
+        "texto": "sin perjuicio de acuerdo, individual o colectivo"
+      }
+    },
+    {
+      "tipo": "preaviso_cambio_min",
+      "valor": 14,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "26",
+        "texto": "Las empresas publicarán los horarios de trabajo con al menos 14 días de antelación a la fecha de inicio de tales horarios."
+      }
+    },
+    {
+      "tipo": "preaviso_cambio_min",
+      "valor": 7,
+      "unidad": "dias",
+      "condicion": "Horario de la primera semana del mes cuando la publicación de horarios es mensual",
+      "cita": {
+        "articulo": "26",
+        "texto": "En aquellas empresas en las que la publicación de los horarios sea mensual, solo el horario correspondiente a la primera semana se podrá publicar con una antelación de 7 días."
+      }
+    },
+    {
+      "tipo": "replanificacion_max_plantilla",
+      "valor": 20,
+      "unidad": "porcentaje",
+      "cita": {
+        "articulo": "26",
+        "texto": "Solo se podrán modificar los horarios, dentro de las bandas fijadas, de un máximo del 20% de la plantilla, con una semana de antelación."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Turno intensivo mañana: banda horaria exclusiva para personal a tiempo completo con jornada continuada",
+      "condicion": "Personal a tiempo completo con jornada continuada",
+      "cita": {
+        "articulo": "26",
+        "texto": "Intensivo mañana: no podrá comenzar antes de las 9:00 ni finalizar después de las 18:00."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Turno intensivo tarde: banda horaria exclusiva para personal a tiempo completo con jornada continuada",
+      "condicion": "Personal a tiempo completo con jornada continuada",
+      "cita": {
+        "articulo": "26",
+        "texto": "Intensivo tarde: no podrá comenzar antes de las 12:00 ni finalizar después de las 21:00."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Las bandas horarias pueden ampliarse por acuerdo colectivo con la representación legal de las personas trabajadoras",
+      "pactable": "colectivo",
+      "cita": {
+        "articulo": "26",
+        "texto": "Por acuerdo colectivo con la representación legal de las personas trabajadoras, que constará por escrito, podrán ampliarse las bandas horarias establecidas."
+      },
+      "cita_pacto": {
+        "articulo": "26",
+        "texto": "Por acuerdo colectivo con la representación legal de las personas trabajadoras, que constará por escrito, podrán ampliarse las bandas horarias establecidas."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "El turno partido no puede aplicarse al personal con jornada igual o inferior a 30 horas semanales",
+      "condicion": "Personal con jornada igual o inferior a 30 horas semanales",
+      "cita": {
+        "articulo": "26",
+        "texto": "Este turno no podrá aplicarse al personal con jornada igual o inferior a 30 horas semanales."
+      }
+    }
+  ]
+}

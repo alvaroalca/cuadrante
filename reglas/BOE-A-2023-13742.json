@@ -1,0 +1,263 @@
+{
+  "boe": "BOE-A-2023-13742",
+  "nombre": "Dependencia",
+  "reglas": [
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1755,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Ayuda a Domicilio",
+      "vigente_desde": 2023,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Ayuda a Domicilio: 1.755 horas."
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1792,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Resto de ámbitos",
+      "vigente_desde": 2023,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Resto de ámbitos: 1.792 horas."
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1747,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Ayuda a Domicilio",
+      "vigente_desde": 2024,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Ayuda a Domicilio: 1.747 horas."
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1784,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Resto de ámbitos",
+      "vigente_desde": 2024,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Resto de ámbitos: 1.784 horas."
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1735,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Ayuda a Domicilio",
+      "vigente_desde": 2025,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Ayuda a Domicilio: 1.735 horas."
+      }
+    },
+    {
+      "tipo": "jornada_anual_max",
+      "valor": 1772,
+      "unidad": "horas",
+      "periodo": "año",
+      "condicion": "Resto de ámbitos",
+      "vigente_desde": 2025,
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Resto de ámbitos: 1.772 horas."
+      }
+    },
+    {
+      "tipo": "horas_dia_max",
+      "valor": 9,
+      "unidad": "horas",
+      "periodo": "dia",
+      "pactable": "colectivo",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "No se podrán realizar más de nueve horas de trabajo efectivo en jornada completa"
+      },
+      "cita_pacto": {
+        "articulo": "39.1",
+        "texto": "a no ser que mediara un mínimo de doce horas entre el final de una jornada y el comienzo de la siguiente, y siempre de mutuo acuerdo entre la empresa y la representación unitaria o sindical del personal"
+      }
+    },
+    {
+      "tipo": "pausa_jornada_partida",
+      "valor": 1,
+      "unidad": "horas",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Se entiende por jornada partida aquella en que exista un descanso ininterrumpido de una hora de duración como mínimo."
+      }
+    },
+    {
+      "tipo": "descanso_compensatorio_festivo",
+      "valor": 1,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "Por cada jornada realizada en día festivo se disfrutará de un descanso compensatorio de un día laborable"
+      }
+    },
+    {
+      "tipo": "descanso_semanal_min",
+      "valor": 1.5,
+      "unidad": "dias",
+      "periodo": "semana",
+      "cita": {
+        "articulo": "40",
+        "texto": "El personal tendrá derecho a un descanso mínimo semanal de día y medio (treinta y seis horas) sin interrupción."
+      }
+    },
+    {
+      "tipo": "domingos_libres_min",
+      "valor": 1,
+      "unidad": "veces",
+      "periodo": "ventana",
+      "ventana_dias": 28,
+      "cita": {
+        "articulo": "40",
+        "texto": "Dicho descanso deberá coincidir obligatoriamente en domingo, al menos una vez cada cuatro semanas, excepto para aquel personal con contratos específicos de fin de semana."
+      },
+      "excepto": "personal con contratos específicos de fin de semana"
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "mañana",
+      "desde": "07:00",
+      "hasta": "18:00",
+      "condicion": "Ayuda a Domicilio, jornada completa continuada",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "Las jornadas completas y continuadas tendrán como horario de entrada el comprendido entre las 7 horas y las 10 horas y como límite máximo de salida las 18 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "partido",
+      "desde": "07:00",
+      "hasta": "22:00",
+      "condicion": "Ayuda a Domicilio, jornada completa partida",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "Las jornadas completas y partidas se realizarán en horario diurno, es decir entre las 7 y las 22 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "mañana",
+      "desde": "07:00",
+      "hasta": "16:00",
+      "condicion": "Ayuda a Domicilio, jornada a tiempo parcial turno de mañana",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "La jornada a tiempo parcial incluida en turno de mañana tendrá como horario de entrada el comprendido entre las 7 y las 10 horas y como límite máximo de salida las 16 horas."
+      }
+    },
+    {
+      "tipo": "turno_banda",
+      "turno": "tarde",
+      "desde": "15:00",
+      "hasta": "22:00",
+      "condicion": "Ayuda a Domicilio, jornada a tiempo parcial turno de tarde",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "La jornada a tiempo parcial incluida en turno de tarde tendrá como horario de entrada el comprendido entre las 15 y las 18 horas y como límite máximo de salida las 22 horas."
+      }
+    },
+    {
+      "tipo": "complementarias_pactadas_max_pct",
+      "valor": 30,
+      "unidad": "porcentaje",
+      "cita": {
+        "articulo": "18.6",
+        "texto": "El número de horas complementarias no podrá exceder del 30% de las horas ordinarias de trabajo objeto del contrato."
+      }
+    },
+    {
+      "tipo": "preaviso_complementarias_min",
+      "valor": 7,
+      "unidad": "dias",
+      "cita": {
+        "articulo": "18.6",
+        "texto": "respetando un preaviso mínimo de 7 días"
+      }
+    },
+    {
+      "tipo": "preaviso_complementarias_min",
+      "valor": 48,
+      "unidad": "horas",
+      "condicion": "necesidad de realización no prevista",
+      "cita": {
+        "articulo": "18.6",
+        "texto": "la necesidad de su realización surja de forma no prevista; en este caso el preaviso mínimo de comunicación al trabajador o trabajadora será de 48 horas"
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "La distribución irregular de la jornada anual puede alcanzar el 10%.",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "La jornada podrá ser distribuida por la empresa de forma irregular en un porcentaje del 10%."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "La jornada partida no puede fraccionarse en más de dos períodos.",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "En ningún caso se podrá fraccionar en más de dos períodos."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "El calendario laboral se entrega con una semana de antelación a la representación sindical. No se convierte a días porque el texto dice 'una semana'.",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "entregando una copia, con una semana de antelación, a la representación unitaria o sindical del personal para su exposición en el tablón de anuncios."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "La jornada a tiempo parcial es continuada, salvo en sábados, domingos, festivos y jornadas especiales, que pueden ser partidas. Las jornadas partidas a tiempo parcial tienen una duración mínima de 24 horas semanales.",
+      "cita": {
+        "articulo": "39.1",
+        "texto": "La jornada a tiempo parcial será continuada, a excepción de las realizadas en sábados, domingos, festivos y jornadas especiales que podrán ser partidas. Cuando las jornadas sean partidas tendrán una duración mínima de 24 horas semanales."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "El descanso compensatorio por festivo trabajado no puede solaparse con el descanso semanal.",
+      "cita": {
+        "articulo": "40",
+        "texto": "En ningún caso podrá ser solapado por el día de descanso compensatorio devengado por haber trabajado durante un día festivo."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Ayuda a Domicilio: el descanso semanal se disfruta en sábados y domingos, salvo jornadas establecidas para atención en esos días.",
+      "condicion": "Ayuda a Domicilio",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "El descanso semanal se disfrutará en sábados y domingos, salvo las jornadas establecidas para la atención en tales días."
+      }
+    },
+    {
+      "tipo": "otra",
+      "descripcion": "Ayuda a Domicilio: la jornada partida no puede dividirse en más de dos fracciones de tiempo por día.",
+      "condicion": "Ayuda a Domicilio",
+      "cita": {
+        "articulo": "39.2",
+        "texto": "El tiempo de trabajo en las jornadas partidas no podrá dividirse cada día en más de dos fracciones de tiempo."
+      }
+    }
+  ]
+}

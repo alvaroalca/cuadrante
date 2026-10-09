@@ -1,0 +1,50 @@
+{
+  "nombre": "Empresa demo",
+  "periodo": { "inicio": "2026-11-02", "dias": 28 },
+  "festivos": [],
+  "vacaciones_dias_naturales": 30,
+  "festivos_anuales": 14,
+  "apertura": { "desde": 7, "hasta": 23 },
+  "turno_horas": [4, 6, 8],
+  "margen_semanal_horas": 10,
+  "margen_periodo_horas": 8,
+  "cobertura": {
+    "laborable": [{ "desde": 7, "hasta": 23, "personas": 4 }],
+    "sabado": [
+      { "desde": 7, "hasta": 15, "personas": 3 },
+      { "desde": 15, "hasta": 23, "personas": 3 }
+    ],
+    "domingo": [
+      { "desde": 7, "hasta": 15, "personas": 3 },
+      { "desde": 15, "hasta": 23, "personas": 3 }
+    ]
+  },
+  "plantilla": [
+    { "nombre": "Sara", "horas_semana": "completa" },
+    { "nombre": "Luis", "horas_semana": "completa" },
+    { "nombre": "Marta", "horas_semana": "completa" },
+    { "nombre": "Javier", "horas_semana": "completa" },
+    { "nombre": "Lucía", "horas_semana": "completa" },
+    { "nombre": "Pablo", "horas_semana": "completa" },
+    { "nombre": "Carmen", "horas_semana": "completa" },
+    { "nombre": "Diego", "horas_semana": "completa" },
+    { "nombre": "Elena", "horas_semana": 30, "indefinido": true, "pacto_complementarias_pct": 30 },
+    { "nombre": "Sergio", "horas_semana": 30, "indefinido": true, "pacto_complementarias_pct": 0 },
+    { "nombre": "Nuria", "horas_semana": 30, "indefinido": false, "pacto_complementarias_pct": 20 },
+    { "nombre": "Raúl", "horas_semana": 30, "indefinido": false, "pacto_complementarias_pct": 0 },
+    { "nombre": "Irene", "horas_semana": 12, "indefinido": true, "pacto_complementarias_pct": 30 },
+    { "nombre": "Óscar", "horas_semana": 12, "indefinido": true, "pacto_complementarias_pct": 0 },
+    { "nombre": "Paula", "horas_semana": 12, "indefinido": false, "pacto_complementarias_pct": 0 }
+  ],
+  "ausencias": [],
+  "condiciones": {
+    "BOE-A-2023-13740": [
+      "Personas trabajadoras con más de tres días de promedio anual de trabajo a la semana en zonas de apertura generalizada"
+    ],
+    "BOE-A-2023-13741": [],
+    "BOE-A-2023-13742": ["Resto de ámbitos"]
+  },
+  "condiciones_imprevistas": {
+    "BOE-A-2023-13742": ["necesidad de realización no prevista"]
+  }
+}
