@@ -64,9 +64,11 @@ def turnos_validos(ctx: Contexto) -> list[Turno]:
     return [t for t in ctx.catalogo() if horas(t) <= maximo and ctx.en_banda(t)]
 
 
-def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = True) -> Modelo:
+def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = True,
+              exentas: set[tuple[str, str]] = frozenset()) -> Modelo:
     """Variables y reglas del convenio. `extra`: turnos que tienen que poder representarse
-    aunque no estén en el catálogo (los de un cuadrante editado a mano)."""
+    aunque no estén en el catálogo (los de un cuadrante editado a mano). `exentas`:
+    (persona, tipo de regla) con acuerdo individual para saltársela."""
     P = ctx.empresa.plantilla
     D = range(ctx.n_dias)
     C = turnos_validos(ctx)
@@ -91,7 +93,10 @@ def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = T
 
     for p in P:
         n = p.nombre
-        if r := ctx.regla(R.HORAS_DIA_MAX):
+        # Lo que la persona ha pactado saltarse no entra; el comprobador vigila que no vaya a más.
+        reglas = [r for r in ctx.reglas if (n, r.tipo) not in exentas]
+        regla = lambda tipo: next((r for r in reglas if r.tipo == tipo), None)  # noqa: E731
+        if r := regla(R.HORAS_DIA_MAX):
             for d in D:
                 for k, v in mod.xs(n, d):
                     if horas(C[k]) > r.valor:
@@ -103,22 +108,22 @@ def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = T
                     if not ctx.en_banda(C[k]):
                         m.add(v == 0)
 
-        if r := ctx.regla(R.DESCANSO_ENTRE_JORNADAS_MIN):
+        if r := regla(R.DESCANSO_ENTRE_JORNADAS_MIN):
             for d in range(ctx.n_dias - 1):
                 ambos = m.new_bool_var("")
                 m.add_bool_and([trabaja[n, d], trabaja[n, d + 1]]).only_enforce_if(ambos)
                 m.add_bool_or([trabaja[n, d].Not(), trabaja[n, d + 1].Not(), ambos])
                 m.add(24 + ini[n, d + 1] - fin[n, d] >= int(r.valor)).only_enforce_if(ambos)
 
-        if r := ctx.regla(R.DIAS_CONSECUTIVOS_MAX):
+        if r := regla(R.DIAS_CONSECUTIVOS_MAX):
             for v in ctx.ventanas(int(r.valor) + 1):
                 m.add(sum(trabaja[n, d] for d in v) <= int(r.valor))
 
-        for r in (r for r in ctx.reglas if r.tipo == R.DIAS_LIBRES_MIN_EN_VENTANA):
+        for r in (r for r in reglas if r.tipo == R.DIAS_LIBRES_MIN_EN_VENTANA):
             for v in ctx.ventanas(r.ventana_dias):
                 m.add(sum(trabaja[n, d] for d in v) <= len(v) - int(r.valor))
 
-        if r := ctx.regla(R.DESCANSO_SEMANAL_MIN):
+        if r := regla(R.DESCANSO_SEMANAL_MIN):
             # ok[d]: librar el día d da `minimo` horas seguidas: lo que queda del día
             # anterior desde que acaba el turno, el día libre y lo que pasa del siguiente
             # hasta que empieza (24 si también libra). Fuera del periodo se supone libre.
@@ -139,7 +144,7 @@ def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = T
             for b in bloques:
                 m.add(sum(ok[d] for d in b) >= hace_falta)
 
-        if r := ctx.regla(R.FINES_SEMANA_LIBRES_MIN):
+        if r := regla(R.FINES_SEMANA_LIBRES_MIN):
             fs = []
             for s, d in ctx.fines_de_semana():
                 f = m.new_bool_var("")
@@ -148,7 +153,7 @@ def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = T
                 fs.append(f)
             m.add(sum(fs) >= ctx.prorrata(r.valor, r.periodo))
 
-        if r := ctx.regla(R.DOMINGOS_LIBRES_MIN):
+        if r := regla(R.DOMINGOS_LIBRES_MIN):
             domingos = ctx.domingos()
             if r.periodo == "ventana" and r.ventana_dias and r.ventana_dias <= ctx.n_dias:
                 for v in ctx.ventanas(r.ventana_dias):
@@ -157,10 +162,10 @@ def construir(ctx: Contexto, extra: list[Turno] = (), evitar_ausencias: bool = T
             else:
                 m.add(sum(trabaja[n, d] for d in domingos) <= len(domingos) - ctx.prorrata(r.valor, r.periodo))
 
-        if r := ctx.regla(R.DOMINGOS_FESTIVOS_TRABAJO_MAX):
+        if r := regla(R.DOMINGOS_FESTIVOS_TRABAJO_MAX):
             m.add(sum(trabaja[n, d] for d in D if ctx.es_domingo_o_festivo(d)) <= ctx.prorrata(r.valor, r.periodo))
 
-        if r := ctx.regla(R.HORAS_SEMANA_TOPE):
+        if r := regla(R.HORAS_SEMANA_TOPE):
             for s in ctx.semanas():
                 m.add(mod.horas_en(n, s) <= int(r.valor))
     return mod

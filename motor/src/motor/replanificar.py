@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from motor.cumplimiento import Cuadrante, Incumplimiento, bolsa_complementarias, comprobar
-from motor.empresa import RAIZ, Ausencia, Contexto, Persona, cargar_convenio, cargar_empresa, horas
+from motor.empresa import RAIZ, Acuerdo, Ausencia, Contexto, Persona, cargar_convenio, cargar_empresa, horas
 from motor.reglas import ESTATUTO, Cita, Regla, TipoRegla as R
 from motor.solver import construir, cobertura, resolver
 
@@ -113,7 +113,8 @@ def opciones(ctx: Contexto, p: Persona, antelacion_h: float, imprevista: bool) -
     return out
 
 
-def replanificar(ctx: Contexto, base: Cuadrante, ausencias: list[Ausencia], segundos: float = 30) -> Replan:
+def replanificar(ctx: Contexto, base: Cuadrante, ausencias: list[Ausencia], segundos: float = 30,
+                 acuerdos: list[Acuerdo] = ()) -> Replan:
     empresa = ctx.empresa.model_copy(update={"ausencias": ctx.empresa.ausencias + ausencias})
     ctx = Contexto(empresa, ctx.convenio, ctx.reglas)
     P, D = empresa.plantilla, range(ctx.n_dias)
@@ -128,7 +129,8 @@ def replanificar(ctx: Contexto, base: Cuadrante, ausencias: list[Ausencia], segu
     imprevista = any(a.imprevista for a in ausencias)
     ausentes = {(a.persona, ctx.fechas.index(a.fecha)) for a in ausencias}
 
-    mod = construir(ctx, extra=[t for fila in base.values() for t in fila if t], evitar_ausencias=False)
+    mod = construir(ctx, extra=[t for fila in base.values() for t in fila if t], evitar_ausencias=False,
+                    exentas={(a.persona, a.tipo) for a in acuerdos})
     m, C = mod.m, mod.C
 
     # Mínimo cambio: todo fijo salvo los días de la ausencia, y esos días solo crecer.

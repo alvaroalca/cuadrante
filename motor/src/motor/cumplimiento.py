@@ -10,7 +10,7 @@ Un cuadrante es {persona: [turno (inicio, fin) o None por día]}.
 
 from dataclasses import dataclass
 
-from motor.empresa import Contexto, Persona, Turno, horas
+from motor.empresa import Acuerdo, Contexto, Persona, Turno, horas
 from motor.reglas import Regla, TipoRegla
 
 Cuadrante = dict[str, list[Turno | None]]
@@ -24,6 +24,27 @@ class Incumplimiento:
     persona: str | None = None
     dias: tuple[int, ...] = ()
     regla: Regla | None = None
+
+    @property
+    def clave(self) -> tuple:
+        return str(self.tipo), self.persona, self.dias, self.mensaje
+
+    def pactado(self, acuerdos: list[Acuerdo]) -> bool:
+        return any((a.tipo, a.persona, tuple(a.dias), a.mensaje) == self.clave for a in acuerdos)
+
+    @property
+    def nivel(self) -> str:
+        """Qué pasa si una edición a mano provoca este incumplimiento.
+
+        - aviso: cobertura y márgenes del contrato, que son necesidad y política de la
+          empresa, no ley. Se avisa y se aplica.
+        - acuerdo: la regla se puede pactar con la persona; se aplica si consta su acuerdo.
+        - bloqueo: no se puede pactar, o solo con la representación y no hay acuerdo
+          colectivo cargado. Los mínimos del Estatuto nunca (ET 3.5).
+        """
+        if self.regla is None:
+            return "aviso"
+        return "acuerdo" if self.regla.pactable == "individual" else "bloqueo"
 
 
 def descanso_alrededor(fila: list[Turno | None], d: int) -> float:
@@ -137,6 +158,16 @@ def comprobar(ctx: Contexto, cuadrante: Cuadrante, pagadas: dict[str, int] | Non
                 if h > r.valor:
                     out.append(Incumplimiento(r.tipo, f"{h} h en la semana; máximo {r.valor:g}", nombre, tuple(s), r))
 
+        if r := regla(R.HORAS_NOCHE_PROMEDIO_MAX):
+            # ET 36.1: en cada ventana con turnos de noche (3 h o más entre las 22 y las 6),
+            # promedio de horas por día trabajado.
+            for v in ctx.ventanas(r.ventana_dias):
+                if any(fila[d] and horas_nocturnas(fila[d]) >= 3 for d in v):
+                    trabajadas = [hh[d] for d in v if trabaja[d]]
+                    media = sum(trabajadas) / len(trabajadas)
+                    if media > r.valor:
+                        out.append(Incumplimiento(r.tipo, f"{media:.1f} h diarias de promedio con noches; máximo {r.valor:g}", nombre, tuple(v), r))
+
         if ctx.bandas():
             for d, t in enumerate(fila):
                 if t and not ctx.en_banda(t):
@@ -184,7 +215,7 @@ APLICADOS = {
     R.HORAS_DIA_MAX, R.DESCANSO_ENTRE_JORNADAS_MIN, R.DIAS_CONSECUTIVOS_MAX, R.DIAS_LIBRES_MIN_EN_VENTANA,
     R.DESCANSO_SEMANAL_MIN, R.FINES_SEMANA_LIBRES_MIN, R.DOMINGOS_LIBRES_MIN, R.DOMINGOS_FESTIVOS_TRABAJO_MAX,
     R.HORAS_SEMANA_TOPE, R.JORNADA_ANUAL_MAX, R.HORAS_SEMANA_PROMEDIO_MAX, R.TURNO_BANDA,
-    R.COMPLEMENTARIAS_PACTADAS_MAX_PCT, R.COMPLEMENTARIAS_VOLUNTARIAS_MAX_PCT,
+    R.COMPLEMENTARIAS_PACTADAS_MAX_PCT, R.COMPLEMENTARIAS_VOLUNTARIAS_MAX_PCT, R.HORAS_NOCHE_PROMEDIO_MAX,
 }
 
 
@@ -203,8 +234,14 @@ def estado(ctx: Contexto, r: Regla) -> str:
         return "al replanificar"
     if r.tipo == R.DESCANSO_COMPENSATORIO_FESTIVO:
         return "pendiente de implementar" if ctx.empresa.festivos else "no hay festivos en el periodo"
-    if r.tipo == R.HORAS_NOCHE_PROMEDIO_MAX:
-        # ET 36.1: es trabajador nocturno quien hace normalmente 3 h o más de noche.
-        if all(horas_nocturnas(t) < 3 for t in ctx.catalogo()):
-            return "ningún turno tiene 3 h nocturnas"
     return "pendiente de implementar"
+
+
+def editar(ctx: Contexto, cuadrante: Cuadrante, persona: str, dia: int, turno: Turno | None,
+           acuerdos: list[Acuerdo] = ()) -> tuple[Cuadrante, list[Incumplimiento], list[Incumplimiento]]:
+    """Pone `turno` (None = libra) a la persona ese día. Devuelve el cuadrante editado, los
+    incumplimientos que trae la edición (sin los que ya había ni los pactados) y todos."""
+    antes = {i.clave for i in comprobar(ctx, cuadrante)}
+    nuevo = {**cuadrante, persona: [turno if d == dia else t for d, t in enumerate(cuadrante[persona])]}
+    todos = comprobar(ctx, nuevo)
+    return nuevo, [i for i in todos if i.clave not in antes and not i.pactado(acuerdos)], todos

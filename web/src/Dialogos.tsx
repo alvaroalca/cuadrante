@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Ausencia, ConvenioResumen, Hoja } from './api'
+import { articulo } from './api'
+import type { Ausencia, ConvenioResumen, Edicion, Hoja, Incumplimiento, Nivel, Turno } from './api'
+import { fmt } from './Hoja'
 
 function Dialogo({ titulo, children, pie, onCerrar }: { titulo: string; children: ReactNode; pie: ReactNode; onCerrar?: () => void }) {
   return (
@@ -136,6 +138,100 @@ export function DialogoAusencia({ hoja, persona, dia, onAceptar, onCerrar }: {
         </div>
         <p className="apagado" style={{ margin: '8px 0 0' }}>El preaviso decide qué horas se pueden pedir: las complementarias pactadas y la redistribución piden días de antelación.</p>
       </fieldset>
+    </Dialogo>
+  )
+}
+
+// Iconos de mensaje de la época: alto, advertencia, información.
+function IconoMensaje({ nivel }: { nivel: Nivel }) {
+  if (nivel === 'bloqueo') return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden>
+      <circle cx="16" cy="16" r="14" fill="#e00000" stroke="#800000" />
+      <path d="M10 10l12 12M22 10L10 22" stroke="#fff" strokeWidth="3.5" />
+    </svg>
+  )
+  if (nivel === 'acuerdo') return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden>
+      <path d="M16 2L31 29H1z" fill="#ffff00" stroke="#000" />
+      <path d="M16 11v9" stroke="#000" strokeWidth="3.5" /><circle cx="16" cy="24.5" r="2" />
+    </svg>
+  )
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden>
+      <circle cx="16" cy="16" r="14" fill="#fff" stroke="#0a246a" />
+      <circle cx="16" cy="9" r="2.2" fill="#0a246a" /><path d="M16 13v11" stroke="#0a246a" strokeWidth="3.5" />
+    </svg>
+  )
+}
+
+const ORDEN: Nivel[] = ['bloqueo', 'acuerdo', 'aviso']
+
+/** Un incumplimiento por regla y persona: una edición puede romper muchas ventanas de la misma regla. */
+export function agrupar(nuevos: Incumplimiento[]) {
+  const grupos = new Map<string, { i: Incumplimiento; n: number }>()
+  for (const i of nuevos) {
+    const k = `${i.nivel}|${i.tipo}|${i.persona}`
+    const g = grupos.get(k)
+    if (g) g.n++
+    else grupos.set(k, { i, n: 1 })
+  }
+  return [...grupos.values()].sort((a, b) => ORDEN.indexOf(a.i.nivel) - ORDEN.indexOf(b.i.nivel))
+}
+
+export function Incidencia({ i, n = 1 }: { i: Incumplimiento; n?: number }) {
+  const r = i.regla
+  return (
+    <div className={`incidencia ${i.nivel}`}>
+      <span>
+        {i.mensaje}{n > 1 ? ` (y ${n - 1} más)` : ''}
+        {r && <> <span className="art">{articulo(r)}</span></>}
+      </span>
+      {r && <q>{r.cita.texto}</q>}
+      {i.nivel === 'bloqueo' && r && (r.origen === 'estatuto'
+        ? <span className="apagado">Mínimo del Estatuto: no se puede pactar (ET 3.5).</span>
+        : r.pactable === 'colectivo'
+          ? <span className="apagado">Solo con acuerdo colectivo, y no hay ninguno cargado. <q>{r.cita_pacto!.texto}</q> <span className="art">{articulo({ ...r, cita: r.cita_pacto! })}</span></span>
+          : <span className="apagado">El convenio no deja pactarlo.</span>)}
+      {i.nivel === 'acuerdo' && r?.cita_pacto && (
+        <span className="apagado">Se puede pactar con la persona: <q>{r.cita_pacto.texto}</q> <span className="art">{articulo({ ...r, cita: r.cita_pacto })}</span></span>
+      )}
+      {i.nivel === 'aviso' && <span className="apagado">{i.tipo === 'cobertura' ? 'Necesidad de la empresa, no ley: se avisa y se aplica.' : 'Margen de la empresa sobre el contrato; la diferencia va al saldo anual.'}</span>}
+    </div>
+  )
+}
+
+export function DialogoEdicion({ persona, dia, antes, despues, edicion, onAcordar, onCerrar }: {
+  persona: string
+  dia: string
+  antes: Turno | null
+  despues: Turno | null
+  edicion: Edicion
+  onAcordar: () => void
+  onCerrar: () => void
+}) {
+  const nivel = edicion.nivel as Nivel
+  const cambio = `${persona}, ${dia}: ${antes ? fmt(antes) : 'libre'} → ${despues ? fmt(despues) : 'libre'}`
+  return (
+    <Dialogo
+      titulo={nivel === 'bloqueo' ? 'No se puede aplicar' : 'Hace falta acuerdo'}
+      onCerrar={onCerrar}
+      pie={nivel === 'bloqueo'
+        ? <button className="boton principal" onClick={onCerrar}>Aceptar</button>
+        : <>
+          <button className="boton" onClick={onCerrar}>Cancelar</button>
+          <button className="boton principal" onClick={onAcordar}>Hay acuerdo con {persona}</button>
+        </>}
+    >
+      <div className="mensaje">
+        <IconoMensaje nivel={nivel} />
+        <div style={{ display: 'grid', gap: 8 }}>
+          <b>{cambio}</b>
+          <span>{nivel === 'bloqueo'
+            ? 'La edición rompe una regla que no se puede pactar con la persona. El cuadrante se queda como estaba.'
+            : `Rompe una regla que el convenio deja pactar con la persona. Si ${persona} está de acuerdo, se aplica y el acuerdo queda registrado.`}</span>
+          {agrupar(edicion.nuevos).map(({ i, n }) => <Incidencia key={`${i.nivel}|${i.tipo}|${i.persona}`} i={i} n={n} />)}
+        </div>
+      </div>
     </Dialogo>
   )
 }

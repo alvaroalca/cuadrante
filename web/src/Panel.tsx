@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 import { articulo, NOMBRE_CLASE } from './api'
-import type { Ausencia, Clase, Convenio, Hoja, Regla, Replan } from './api'
+import type { Acuerdo, Ausencia, Clase, Convenio, Hoja, Incumplimiento, Regla, Replan } from './api'
+import { agrupar, Incidencia } from './Dialogos'
 import { fmt } from './Hoja'
 import { enunciado } from './reglas'
 
@@ -17,6 +18,9 @@ interface Props {
   convenio: Convenio
   hoja: Hoja
   incumplimientos: number
+  pactados: number
+  acuerdos: Acuerdo[]
+  avisos: Incumplimiento[]
   ausencias: Ausencia[]
   propuesta: Replan | null
   nuevaAusencia: Ausencia | null
@@ -122,14 +126,17 @@ export function Panel(p: Props) {
 
   const convenioReglas = convenio.efectivas.filter(r => r.origen === 'convenio')
   const estatuto = convenio.efectivas.filter(r => r.origen === 'estatuto')
+  // Un acuerdo por persona y regla, aunque cubra varias ventanas.
+  const pactos = [...new Map(p.acuerdos.map(a => [`${a.persona}|${a.tipo}`, a])).values()]
   return (
     <aside className="panel">
       <header>{convenio.nombre} <span className="sello">{convenio.boe}</span></header>
       <section>
         <p>
           <span className={`sello ${p.incumplimientos ? 'mal' : 'bien'}`}>{p.incumplimientos} incumplimientos</span>{' '}
-          <span className="apagado">en las 4 semanas</span>
+          <span className="apagado">en las 4 semanas{p.pactados ? `, y ${p.pactados} pactados con la persona` : ''}</span>
         </p>
+        <p className="apagado">Para cambiar un turno, selecciona la celda y escribe en la barra de fórmulas (7-15, o 22-6 para una noche). Supr la deja libre.</p>
         <p className="apagado">Jornada completa bajo este convenio: {convenio.completa} h a la semana.</p>
         <button className="boton" onClick={p.onAusencia}>Marcar ausencia…</button>{' '}
         <span className="apagado">o clic derecho en un turno</span>
@@ -137,6 +144,30 @@ export function Panel(p: Props) {
           <p style={{ marginTop: 8 }}>Ausencias aplicadas: {p.ausencias.map(a => `${a.persona} (${dia(hoja.fechas.indexOf(a.fecha))})`).join(', ')}</p>
         )}
       </section>
+      {p.error && <section><p className="error">{p.error}</p></section>}
+      {p.avisos.length > 0 && (
+        <section>
+          <h3>Última edición</h3>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {agrupar(p.avisos).map(({ i, n }) => <Incidencia key={`${i.tipo}|${i.persona}`} i={i} n={n} />)}
+          </div>
+        </section>
+      )}
+      {pactos.length > 0 && (
+        <section>
+          <h3>Acuerdos con la plantilla</h3>
+          <ul className="acuerdos">
+            {pactos.map(a => {
+              const r = convenio.efectivas.find(x => x.tipo === a.tipo)
+              return (
+                <li key={`${a.persona}|${a.tipo}`} {...(r?.cita_pacto ? nota({ ...r, cita: r.cita_pacto }, `${a.persona} · acuerdo individual`) : {})}>
+                  <b>{a.persona}</b>: {r ? enunciado(r) : a.tipo} {r && <span className="art">{articulo(r)}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
       <section>
         <h3>Lo que dice el convenio</h3>
         <ul className="reglas">

@@ -9,8 +9,10 @@ interface Props {
   cuadrante: Cuadrante
   ausencias: Ausencia[]
   cambios: Cambio[]
+  editadas: Set<string> // `${persona}|${día}` editadas a mano
   seleccion: Seleccion | null
   onSeleccion: (s: Seleccion) => void
+  onEditar: () => void
   onAusencia: (persona: string, dia: number) => void
   onNota: (e: MouseEvent, persona: string, dia: number) => void
   onSinNota: () => void
@@ -19,10 +21,13 @@ interface Props {
 const LETRAS = Array.from({ length: 27 }, (_, i) => (i < 26 ? String.fromCharCode(65 + i) : 'AA'))
 const HORAS = Array.from({ length: 24 }, (_, h) => h)
 
-/** Mañana si empieza antes de las 14; tarde si no. Basta para pintar como un responsable. */
-export const franja = (t: Turno) => (t[0] < 14 ? 'm' : 't')
+/** Noche si empieza de 21 a 5, mañana si antes de las 14 y tarde si no. Basta para pintar como un responsable. */
+export const franja = (t: Turno) => (t[0] >= 21 || t[0] < 5 ? 'n' : t[0] < 14 ? 'm' : 't')
 export const horas = (t: Turno | null) => (t ? t[1] - t[0] : 0)
-export const fmt = (t: Turno) => `${String(t[0]).padStart(2, '0')}–${String(t[1]).padStart(2, '0')}`
+const hh = (h: number) => String(h).padStart(2, '0')
+/** Un turno que cruza la medianoche acaba al día siguiente: 22–06. */
+export const fmt = (t: Turno) => `${hh(t[0])}–${hh(t[1] > 24 ? t[1] - 24 : t[1])}`
+export const clave = (persona: string, dia: number) => `${persona}|${dia}`
 
 function ausente(ausencias: Ausencia[], persona: string, fecha: string, h: number) {
   return ausencias.some(a => a.persona === persona && a.fecha === fecha
@@ -62,7 +67,10 @@ export function VistaDia({ dia, ...p }: Props & { dia: number }) {
         </tr>
         {hoja.plantilla.map((pers, i) => {
           const t = cuadrante[pers.nombre][dia]
+          const ayer = dia > 0 ? cuadrante[pers.nombre][dia - 1] : null
+          const sigue = ayer && ayer[1] > 24 ? ayer[1] - 24 : 0 // horas de la noche anterior que caen hoy
           const cambio = cambios.find(c => c.persona === pers.nombre && c.dia === dia)
+          const editada = p.editadas.has(clave(pers.nombre, dia))
           return (
             <tr key={pers.nombre} style={{ ['--i' as string]: i + 1 }}>
               <th className={`num ${filaSel === pers.nombre ? 'sel' : ''}`}>{i + 2}</th>
@@ -75,18 +83,20 @@ export function VistaDia({ dia, ...p }: Props & { dia: number }) {
                 const clases = ['hora']
                 if (!abierta(h)) clases.push('cerrado')
                 if (dentro) clases.push(aus ? 'aus' : nuevo ? 'nuevo' : franja(t!))
+                else if (h < sigue) clases.push('n', 'sigue')
                 if (dentro && h === t![0]) clases.push('ini')
                 if (dentro && h === t![1] - 1) clases.push('fin')
-                if (cambio && dentro && h === cambio.despues[0]) clases.push('comentado')
+                if ((cambio || editada) && dentro && h === t![0]) clases.push('comentado')
                 if (sel(pers.nombre, h)) clases.push('activa')
                 return (
                   <td
                     key={h}
                     className={clases.join(' ')}
                     onMouseDown={() => p.onSeleccion({ fila: pers.nombre, col: h })}
+                    onDoubleClick={p.onEditar}
                     onContextMenu={e => { e.preventDefault(); p.onSeleccion({ fila: pers.nombre, col: h }); p.onAusencia(pers.nombre, dia) }}
-                    onMouseEnter={cambio && dentro ? e => p.onNota(e, pers.nombre, dia) : undefined}
-                    onMouseLeave={cambio && dentro ? p.onSinNota : undefined}
+                    onMouseEnter={(cambio || editada) && dentro ? e => p.onNota(e, pers.nombre, dia) : undefined}
+                    onMouseLeave={(cambio || editada) && dentro ? p.onSinNota : undefined}
                   >
                     {aus && h === t![0] ? '×' : ''}
                     {nuevo && <span className={`hormigas ${h === cambio!.despues[0] ? 'ini' : ''} ${h === cambio!.despues[1] - 1 ? 'fin' : ''}`} />}
@@ -155,17 +165,19 @@ export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
               {semana.map(d => {
                 const t = cuadrante[pers.nombre][d]
                 const cambio = cambios.find(c => c.persona === pers.nombre && c.dia === d)
+                const editada = p.editadas.has(clave(pers.nombre, d))
                 const aus = t && ausente(ausencias, pers.nombre, hoja.fechas[d], t[0])
                 const clases = ['dia']
                 if (t) clases.push(aus ? 'aus' : cambio ? 'nuevo' : franja(t))
-                if (cambio) clases.push('comentado')
+                if (cambio || editada) clases.push('comentado')
                 if (seleccion?.fila === pers.nombre && seleccion.col === d) clases.push('activa')
                 return (
                   <td key={d} className={clases.join(' ')}
                     onMouseDown={() => p.onSeleccion({ fila: pers.nombre, col: d })}
+                    onDoubleClick={p.onEditar}
                     onContextMenu={e => { e.preventDefault(); p.onSeleccion({ fila: pers.nombre, col: d }); p.onAusencia(pers.nombre, d) }}
-                    onMouseEnter={cambio ? e => p.onNota(e, pers.nombre, d) : undefined}
-                    onMouseLeave={cambio ? p.onSinNota : undefined}>
+                    onMouseEnter={cambio || editada ? e => p.onNota(e, pers.nombre, d) : undefined}
+                    onMouseLeave={cambio || editada ? p.onSinNota : undefined}>
                     {t ? fmt(t) : ''}
                     {cambio && <span className="hormigas ini fin" />}
                   </td>

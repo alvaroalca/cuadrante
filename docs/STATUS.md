@@ -36,9 +36,18 @@
   - Referencia visual elegida por Álvaro: hoja de cálculo de escritorio de la época Office 2000/XP (cromo gris, retícula, paleta clásica de 56 colores, comentarios de celda, hormigas de copiar). Fuentes Archivo Narrow y Azeret Mono.
   - Recorrido probado con Edge headless (playwright-core desde PowerShell; desde Bash Edge no arranca): ausencia de Luis el martes 10 en dependencia → Elena 11-15 e Irene 7-11, 4 h voluntarias cada una, 0 incumplimientos tras aplicar.
 
+## 10/10/2026: ediciones a mano
+
+- `POST /api/editar` (`cumplimiento.editar`): pone un turno a una persona un día, compara los incumplimientos de antes y de después y clasifica los nuevos (`Incumplimiento.nivel`). Cobertura y márgenes del contrato: **aviso**, se aplica. Regla `individual`: **acuerdo**, se aplica si se confirma y queda registrado. `no` y `colectivo`: **bloqueo** con la cita. No hay forma de cargar un acuerdo colectivo, así que `colectivo` bloquea siempre (enseña la cita que lo permitiría).
+- Un `Acuerdo` cubre exactamente los incumplimientos que se enseñaron (tipo, persona, días, mensaje): si una edición posterior empeora la misma ventana, se vuelve a pedir. `comprobar` y `replanificar` reciben los acuerdos y marcan `pactado`; el contador solo cuenta los no pactados.
+- Replanificar sobre un cuadrante con acuerdos: `construir(exentas=…)` quita a esa persona la regla pactada. Sin eso el modelo sale imposible (el cuadrante fijo ya la incumple). El comprobador sigue vigilando que no vaya a más.
+- ET 36.1 en el comprobador: en cada ventana de 15 días con turnos de 3 h o más de noche, promedio de horas por día trabajado ≤ 8.
+- Barrido de todas las ediciones simples (librar, mañana, tarde, 10 h, 22-6) en los tres convenios: los tres niveles salen donde tocan. Ejemplos para la demo: contact center, Marta el miércoles 11 de 15 a 23 → acuerdo (art. 23, 3 libres en 14); dependencia, turno de 10 h → bloqueo colectivo (art. 39.1); cualquier tarde seguida de mañana → bloqueo ET 34.3.
+- Web: se selecciona la celda y se escribe en la barra de fórmulas (`7-15`, `22-6` cruza la medianoche, vacío o `libre`); Supr libra, F2, Intro o doble clic editan, una cifra empieza a escribir. Diálogo con icono de la época (alto / advertencia) y una ficha por regla con la cita y la cita de pacto. Celda editada con triángulo rojo y nota; panel con acuerdos registrados y avisos de la última edición. Turnos de noche en lila; lo que la noche de ayer trae a hoy, rayado.
+- Interpretación a revisar: el ET 36.1 se aplica a cualquier ventana con una noche, no solo a quien es "trabajador nocturno" de forma habitual. Es lo más estricto.
+
 ## Siguiente
 
-1. Ediciones a mano en la rejilla con los tres niveles de aviso (pactable individual, colectivo, no), validadas con `/api/comprobar`.
-2. README con cómo implantar un convenio nuevo (agente, revisión, ficha) y cómo arrancar.
-3. Traducción de frases con qwen ("Carmen de baja el martes") y banco de frases para medirla.
-4. Reel y ficha del portfolio.
+1. README con cómo implantar un convenio nuevo (agente, revisión, ficha) y cómo arrancar.
+2. Traducción de frases con qwen ("Carmen de baja el martes") y banco de frases para medirla.
+3. Reel y ficha del portfolio.

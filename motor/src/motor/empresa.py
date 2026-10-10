@@ -59,6 +59,16 @@ class Ausencia(BaseModel):
     imprevista: bool = True
 
 
+class Acuerdo(BaseModel):
+    """Acuerdo de una persona para una edición a mano que se salta una regla pactable a
+    título individual. Cubre justo los incumplimientos que se le enseñaron: si una edición
+    posterior los cambia, hay que volver a pedírselo."""
+    persona: str
+    tipo: str
+    dias: list[int] = []
+    mensaje: str
+
+
 class Periodo(BaseModel):
     inicio: date
     dias: int

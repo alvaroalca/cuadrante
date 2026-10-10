@@ -59,6 +59,26 @@ export interface Incumplimiento {
   persona: string | null
   dias: number[]
   regla: Regla | null
+  nivel: Nivel
+  pactado: boolean
+}
+
+// Qué hace una edición a mano que provoca un incumplimiento (ver Incumplimiento.nivel en el motor).
+export type Nivel = 'aviso' | 'acuerdo' | 'bloqueo'
+
+/** Acuerdo individual registrado al confirmar una edición: cubre justo esos incumplimientos. */
+export interface Acuerdo {
+  persona: string
+  tipo: string
+  dias: number[]
+  mensaje: string
+}
+
+export interface Edicion {
+  nivel: Nivel | 'ok'
+  nuevos: Incumplimiento[]
+  cuadrante: Cuadrante
+  incumplimientos: Incumplimiento[]
 }
 
 export interface Hoja {
@@ -122,10 +142,10 @@ export const api = {
   convenios: () => pedir<ConvenioResumen[]>('/convenios'),
   convenio: (boe: string) => pedir<Convenio>(`/convenios/${boe}`),
   hoja: (boe: string) => pedir<Hoja>(`/cuadrante/${boe}`),
-  comprobar: (boe: string, cuadrante: Cuadrante, ausencias: Ausencia[]) =>
-    pedir<Incumplimiento[]>(`/comprobar/${boe}`, { cuadrante, ausencias }),
-  replanificar: (boe: string, cuadrante: Cuadrante, ausencias: Ausencia[]) =>
-    pedir<Replan>(`/replanificar/${boe}`, { cuadrante, ausencias }),
+  editar: (boe: string, cuadrante: Cuadrante, persona: string, dia: number, turno: Turno | null, ausencias: Ausencia[], acuerdos: Acuerdo[]) =>
+    pedir<Edicion>(`/editar/${boe}`, { cuadrante, persona, dia, turno, ausencias, acuerdos }),
+  replanificar: (boe: string, cuadrante: Cuadrante, ausencias: Ausencia[], acuerdos: Acuerdo[]) =>
+    pedir<Replan>(`/replanificar/${boe}`, { cuadrante, ausencias, acuerdos }),
 }
 
 export const NOMBRE_CLASE: Record<Clase, string> = {

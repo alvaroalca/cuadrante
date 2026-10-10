@@ -19,6 +19,7 @@
   --tinta-suave: #5a5a5a;
   --manana: #ffff99;
   --tarde: #99ccff;
+  --noche: #cc99ff;
   --ausencia: #ff99cc;
   --propuesta: #ccffcc;
   --mal-fondo: #ffc7ce;
@@ -172,6 +173,17 @@ button, input, select { font: inherit; color: inherit; }
 .formula .fx { font-style: italic; font-family: Georgia, serif; text-align: center; color: var(--tinta-suave); }
 .formula .contenido { font-family: var(--cifra); font-size: 12px; }
 .formula .contenido .cita { font-family: var(--ui); font-size: 13px; color: var(--tinta-suave); margin-left: 10px; }
+.formula .contenido input {
+  width: 9ch;
+  height: 18px;
+  border: none;
+  padding: 0;
+  margin-right: 6px;
+  font: inherit;
+  background: transparent;
+  outline: none;
+}
+.formula .contenido input:focus { background: var(--celda); box-shadow: 0 0 0 1px var(--tinta); }
 
 /* --- Área de trabajo --- */
 
@@ -252,6 +264,9 @@ table.rejilla {
 /* Rellenos de turno */
 .rejilla td.m { background: var(--manana); }
 .rejilla td.t { background: var(--tarde); }
+.rejilla td.n { background: var(--noche); }
+/* Lo que la noche de ayer trae a hoy */
+.rejilla td.sigue { background: repeating-linear-gradient(90deg, var(--noche) 0 3px, #e6d1ff 3px 6px); }
 .rejilla td.aus {
   background: repeating-linear-gradient(135deg, var(--ausencia) 0 4px, #ffc2e0 4px 8px);
   color: var(--mal-tinta);
@@ -509,5 +524,16 @@ table.quien-puede {
   position: relative;
 }
 .hojita span { position: absolute; height: 8px; }
+
+/* Diálogo de edición a mano: icono de mensaje de la época y una ficha por regla */
+.mensaje { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start; }
+.incidencia { padding: 6px 8px; background: var(--celda); border: 1px solid var(--rejilla); display: grid; gap: 3px; }
+.incidencia .art { font-family: var(--cifra); font-size: 11px; color: var(--tinta-suave); }
+.incidencia q { quotes: '«' '»'; color: var(--tinta-suave); }
+.incidencia.bloqueo { border-left: 4px solid var(--mal-tinta); }
+.incidencia.acuerdo { border-left: 4px solid #c9a400; }
+.incidencia.aviso { border-left: 4px solid var(--titulo-a); }
+ul.acuerdos { margin: 0; padding-left: 16px; }
+ul.acuerdos li { margin-bottom: 4px; }
 
 .error { color: var(--mal-tinta); background: var(--mal-fondo); padding: 6px 8px; border: 1px solid var(--mal-tinta); }

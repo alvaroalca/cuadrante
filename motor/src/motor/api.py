@@ -6,8 +6,8 @@ Arrancar: cd motor && uv run uvicorn motor.api:app --reload
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from motor.cumplimiento import Incumplimiento, comprobar, estado
-from motor.empresa import RAIZ, Ausencia, Contexto, cargar_convenio, cargar_empresa
+from motor.cumplimiento import Incumplimiento, comprobar, editar, estado
+from motor.empresa import RAIZ, Acuerdo, Ausencia, Contexto, cargar_convenio, cargar_empresa
 from motor.reglas import Regla
 from motor.replanificar import cuadrante_base, replanificar
 
@@ -24,13 +24,15 @@ def regla_json(ctx: Contexto, r: Regla) -> dict:
     return {**r.model_dump(mode="json", exclude_none=True), "estado": estado(ctx, r)}
 
 
-def incumplimiento_json(i: Incumplimiento) -> dict:
+def incumplimiento_json(i: Incumplimiento, acuerdos: list[Acuerdo] = ()) -> dict:
     return {
-        "tipo": str(getattr(i.tipo, "value", i.tipo)),
+        "tipo": str(i.tipo),
         "mensaje": i.mensaje,
         "persona": i.persona,
         "dias": list(i.dias),
         "regla": i.regla.model_dump(mode="json", exclude_none=True) if i.regla else None,
+        "nivel": i.nivel,
+        "pactado": i.pactado(acuerdos),
     }
 
 
@@ -84,23 +86,54 @@ def cuadrante(boe: str):
     }
 
 
+def con_ausencias(ctx: Contexto, ausencias: list[Ausencia]) -> Contexto:
+    if not ausencias:
+        return ctx
+    e = ctx.empresa.model_copy(update={"ausencias": ctx.empresa.ausencias + ausencias})
+    return Contexto(e, ctx.convenio, ctx.reglas)
+
+
 class Comprobar(BaseModel):
     cuadrante: dict[str, list[list[int] | None]]
     ausencias: list[Ausencia] = []
+    acuerdos: list[Acuerdo] = []
 
 
 @app.post("/api/comprobar/{boe}")
 def comprobar_cuadrante(boe: str, cuerpo: Comprobar):
-    ctx = contexto(boe)
-    if cuerpo.ausencias:
-        e = ctx.empresa.model_copy(update={"ausencias": ctx.empresa.ausencias + cuerpo.ausencias})
-        ctx = Contexto(e, ctx.convenio, ctx.reglas)
-    return [incumplimiento_json(i) for i in comprobar(ctx, cuadrante_de(cuerpo.cuadrante))]
+    ctx = con_ausencias(contexto(boe), cuerpo.ausencias)
+    return [incumplimiento_json(i, cuerpo.acuerdos) for i in comprobar(ctx, cuadrante_de(cuerpo.cuadrante))]
+
+
+class Editar(Comprobar):
+    persona: str
+    dia: int
+    turno: tuple[int, int] | None  # None: libra; fin > 24 si cruza la medianoche
+
+
+@app.post("/api/editar/{boe}")
+def editar_celda(boe: str, cuerpo: Editar):
+    """Valida una edición a mano. `nivel` es lo peor que trae: ok, aviso, acuerdo o bloqueo."""
+    ctx = con_ausencias(contexto(boe), cuerpo.ausencias)
+    c = cuadrante_de(cuerpo.cuadrante)
+    if cuerpo.persona not in c or not 0 <= cuerpo.dia < ctx.n_dias:
+        raise HTTPException(422, "Persona o día fuera del cuadrante")
+    if cuerpo.turno and not (0 <= cuerpo.turno[0] < 24 and cuerpo.turno[0] < cuerpo.turno[1] <= cuerpo.turno[0] + 24):
+        raise HTTPException(422, "Turno no válido")
+    nuevo, nuevos, todos = editar(ctx, c, cuerpo.persona, cuerpo.dia, cuerpo.turno, cuerpo.acuerdos)
+    niveles = {i.nivel for i in nuevos}
+    return {
+        "nivel": next((n for n in ("bloqueo", "acuerdo", "aviso") if n in niveles), "ok"),
+        "nuevos": [incumplimiento_json(i) for i in nuevos],
+        "cuadrante": cuadrante_json(nuevo),
+        "incumplimientos": [incumplimiento_json(i, cuerpo.acuerdos) for i in todos],
+    }
 
 
 class Replanificar(BaseModel):
     cuadrante: dict[str, list[list[int] | None]]
     ausencias: list[Ausencia]
+    acuerdos: list[Acuerdo] = []
 
 
 @app.post("/api/replanificar/{boe}")
@@ -109,7 +142,7 @@ def replanificar_cuadrante(boe: str, cuerpo: Replanificar):
     for a in cuerpo.ausencias:
         if a.fecha not in ctx.fechas:
             raise HTTPException(422, f"{a.fecha} está fuera del periodo")
-    rp = replanificar(ctx, cuadrante_de(cuerpo.cuadrante), cuerpo.ausencias)
+    rp = replanificar(ctx, cuadrante_de(cuerpo.cuadrante), cuerpo.ausencias, acuerdos=cuerpo.acuerdos)
     return {
         "estado": rp.estado,
         "cuadrante": cuadrante_json(rp.cuadrante) if rp.cuadrante else None,
@@ -124,5 +157,5 @@ def replanificar_cuadrante(boe: str, cuerpo: Replanificar):
                  "regla": o.regla.model_dump(mode="json", exclude_none=True) if o.regla else None} for o in ops]
             for n, ops in rp.opciones.items()
         },
-        "incumplimientos": [incumplimiento_json(i) for i in rp.incumplimientos],
+        "incumplimientos": [incumplimiento_json(i, cuerpo.acuerdos) for i in rp.incumplimientos],
     }
