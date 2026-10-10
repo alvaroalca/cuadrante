@@ -46,8 +46,9 @@
 - Web: se selecciona la celda y se escribe en la barra de fórmulas (`7-15`, `22-6` cruza la medianoche, vacío o `libre`); Supr libra, F2, Intro o doble clic editan, una cifra empieza a escribir. Diálogo con icono de la época (alto / advertencia) y una ficha por regla con la cita y la cita de pacto. Celda editada con triángulo rojo y nota; panel con acuerdos registrados y avisos de la última edición. Turnos de noche en lila; lo que la noche de ayer trae a hoy, rayado.
 - Interpretación a revisar: el ET 36.1 se aplica a cualquier ventana con una noche, no solo a quien es "trabajador nocturno" de forma habitual. Es lo más estricto.
 
+- `README.md`: qué hace, cómo arrancar y cómo implantar un convenio nuevo (BOE, agente, validador, revisión humana, ficha de empresa).
+
 ## Siguiente
 
-1. README con cómo implantar un convenio nuevo (agente, revisión, ficha) y cómo arrancar.
-2. Traducción de frases con qwen ("Carmen de baja el martes") y banco de frases para medirla.
-3. Reel y ficha del portfolio.
+1. Traducción de frases con qwen ("Carmen de baja el martes") y banco de frases para medirla.
+2. Reel y ficha del portfolio.
