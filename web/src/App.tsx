@@ -1,360 +1,304 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent as TeclaReact, MouseEvent } from 'react'
-import { api, articulo, NOMBRE_CLASE } from './api'
-import type { Acuerdo, Ausencia, Clase, Convenio, ConvenioResumen, Cuadrante, Edicion, Hoja, Incumplimiento, Regla, Replan, Turno } from './api'
-import { DialogoAusencia, DialogoConvenio, DialogoEdicion } from './Dialogos'
-import { clave, fmt, horas, VistaDia, VistaSemana } from './Hoja'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
+import { api } from './api'
+import type { Convenio, ConvenioResumen, Estado, Hoja, Incumplimiento, MensajeModelo, RespuestaAccion } from './api'
+import { Chat } from './Chat'
+import type { Item } from './Chat'
+import { DialogoAusencia, DialogoConvenio, DialogoNivel } from './Dialogos'
+import type { DatosAusencia } from './Dialogos'
+import { clave, DIAS, diaSemana, fmt, LEYENDA, NOMBRE_DIA, VistaDia, VistaSemana } from './Hoja'
 import type { Seleccion } from './Hoja'
-import { Panel } from './Panel'
-import type { NotaDatos } from './Panel'
+import { Cajon } from './Cajon'
+import type { Pestana } from './Cajon'
 
-const DIAS = 'LMXJVSD'
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-const COL = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : 'AA')
 
-/** "7-15", "07–15", "7 a 15"; "22-6" cruza la medianoche. Vacío o "libre": libra. undefined: no se entiende. */
-function leerTurno(texto: string): Turno | null | undefined {
-  const t = texto.trim().toLowerCase()
-  if (!t || t === 'libre') return null
-  const m = t.match(/^(\d{1,2})(?::00)?\s*(?:-|–|a)\s*(\d{1,2})(?::00)?$/)
-  if (!m) return undefined
-  const a = Number(m[1]), b = Number(m[2])
-  if (a > 23 || b > 24 || a === b) return undefined
-  return [a, b > a ? b : b + 24]
-}
-
-const igual = (a: Turno | null, b: Turno | null) => (a ? !!b && a[0] === b[0] && a[1] === b[1] : !b)
-const claveInc = (i: Incumplimiento) => `${i.tipo}|${i.persona}|${i.dias.join(',')}|${i.mensaje}`
-
-interface Pendiente { persona: string; dia: number; antes: Turno | null; despues: Turno | null; edicion: Edicion }
-/** Celda editada a mano: lo que había al principio y las reglas que se pactaron para dejarla así. */
-interface Editada { persona: string; dia: number; antes: Turno | null; despues: Turno | null; pactos: Regla[] }
-
-function Icono() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-      <rect width="16" height="16" fill="#fff" stroke="#808080" />
-      <path d="M0 5.5h16M0 10.5h16M5.5 0v16M10.5 0v16" stroke="#c0c0c0" />
-      <rect x="6" y="6" width="4" height="4" fill="#ffff99" stroke="#000" />
-    </svg>
-  )
-}
+interface Pendiente { nivel: 'bloqueo' | 'acuerdo'; que: string; persona: string; incidencias: Incumplimiento[]; nombre: string; args: Record<string, unknown> }
+interface Aviso { texto: string; detalle?: string; deshacer?: boolean }
 
 export default function App() {
   const [convenios, setConvenios] = useState<ConvenioResumen[]>([])
   // ?convenio=BOE-… abre la hoja directamente, sin el diálogo (para grabar la demo).
   const inicial = new URLSearchParams(location.search).get('convenio')
-  const [boe, setBoe] = useState<string | null>(inicial)
   const [elegir, setElegir] = useState(!inicial)
   const [convenio, setConvenio] = useState<Convenio | null>(null)
   const [hoja, setHoja] = useState<Hoja | null>(null)
-  const [cuadrante, setCuadrante] = useState<Cuadrante | null>(null)
-  const [ausencias, setAusencias] = useState<Ausencia[]>([])
+  const [estado, setEstado] = useState<Estado | null>(null)
+  const [historial, setHistorial] = useState<Estado[]>([])
   const [incs, setIncs] = useState<Incumplimiento[]>([])
-  const [acuerdos, setAcuerdos] = useState<Acuerdo[]>([])
-  const [editadas, setEditadas] = useState<Editada[]>([])
-  const [pendiente, setPendiente] = useState<Pendiente | null>(null)
-  const [avisos, setAvisos] = useState<Incumplimiento[]>([]) // los de la última edición
-  const [texto, setTexto] = useState<string | null>(null) // lo que se escribe en la barra de fórmulas
-  const entrada = useRef<HTMLInputElement>(null)
+  const [resaltar, setResaltar] = useState<[string, number][]>([])
+  const [hoy, setHoy] = useState(0)
   const [semana, setSemana] = useState(0)
-  const [vista, setVistaSola] = useState<number | 'semana'>(0) // día de la semana (0-6) o la semana entera
+  const [vista, setVista] = useState<'semana' | number>('semana') // la semana o un día (índice en fechas)
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
-  const setVista = (v: number | 'semana') => { setVistaSola(v); setSeleccion(null) }
-  const [nota, setNota] = useState<NotaDatos | null>(null)
-  const [dialogoAusencia, setDialogoAusencia] = useState<{ persona: string; dia: number } | null>(null)
-  const [nuevaAusencia, setNuevaAusencia] = useState<Ausencia | null>(null)
-  const [propuesta, setPropuesta] = useState<Replan | null>(null)
-  const [calculando, setCalculando] = useState(false)
+  const [editor, setEditor] = useState<{ s: Seleccion; x: number; y: number; texto: string } | null>(null)
+  const [menu, setMenu] = useState<{ s: Seleccion; x: number; y: number } | null>(null)
+  const [ausencia, setAusencia] = useState<Seleccion | null>(null)
+  const [pendiente, setPendiente] = useState<Pendiente | null>(null)
+  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [cajon, setCajon] = useState<Pestana | null>(null)
+  const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [chatAbierto, setChatAbierto] = useState(true)
+  const [items, setItems] = useState<Item[]>([])
+  const [mensajes, setMensajes] = useState<MensajeModelo[]>([])
+  const [pensando, setPensando] = useState(false)
+  const editorRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { api.convenios().then(setConvenios).catch(e => setError(String(e))) }, [])
 
-  useEffect(() => {
-    if (!boe) return
-    setHoja(null); setConvenio(null); setPropuesta(null); setAusencias([]); setSeleccion(null)
-    setAcuerdos([]); setEditadas([]); setAvisos([]); setPendiente(null)
-    Promise.all([api.convenio(boe), api.hoja(boe)]).then(([c, h]) => {
-      setConvenio(c); setHoja(h); setCuadrante(h.cuadrante); setIncs(h.incumplimientos)
-    }).catch(e => setError(String(e)))
-  }, [boe])
-
-  const dias = hoja?.semanas[semana] ?? []
-  const dia = vista === 'semana' ? null : dias[vista]
-  const mostrado = propuesta?.cuadrante ?? cuadrante
-  const cambios = propuesta?.cambios ?? []
-  const incumplimientos = incs.filter(i => !i.pactado).length
-  // Celda de una persona seleccionada: la que se edita.
-  const celda = seleccion && seleccion.fila !== 'faltan' && seleccion.fila !== 'hay'
-    ? { persona: seleccion.fila, dia: vista === 'semana' ? seleccion.col : dia! } : null
-  const turnoCelda = celda && mostrado ? mostrado[celda.persona][celda.dia] : null
-  const valorCelda = turnoCelda ? fmt(turnoCelda) : ''
-
-  function empezar(inicial?: string) {
-    if (!celda || propuesta) return
-    setTexto(inicial ?? valorCelda)
-    requestAnimationFrame(() => entrada.current?.focus())
-  }
-
-  async function editar(turno: Turno | null) {
-    if (!boe || !cuadrante || !celda || propuesta) return
-    const { persona, dia: d } = celda
-    const antes = cuadrante[persona][d]
-    if (igual(antes, turno)) return
+  // Al abrir un convenio: sus reglas, la hoja y el cuadrante de partida.
+  const abrir = useCallback(async (boe: string) => {
     setError(null)
     try {
-      const edicion = await api.editar(boe, cuadrante, persona, d, turno, ausencias, acuerdos)
-      const p = { persona, dia: d, antes, despues: turno, edicion }
-      if (edicion.nivel === 'ok' || edicion.nivel === 'aviso') aplicarEdicion(p, false)
-      else setPendiente(p)
+      const [c, h] = await Promise.all([api.convenio(boe), api.hoja(boe)])
+      setConvenio(c); setHoja(h)
+      setEstado({ boe, cuadrante: h.cuadrante, ausencias: [], acuerdos: [], clases: {} })
+      setHistorial([]); setIncs(h.incumplimientos); setResaltar([])
+      const hoyReal = h.fechas.indexOf(new Date().toISOString().slice(0, 10))
+      setHoy(hoyReal >= 0 ? hoyReal : 0)
+      setSemana(0); setVista('semana'); setSeleccion(null)
     } catch (e) {
       setError(String(e))
     }
+  }, [])
+  useEffect(() => { if (inicial) abrir(inicial) }, [inicial, abrir])
+
+  // Si una acción cambia de convenio, la hoja (contratos, reglas) se recarga y el estado se queda.
+  useEffect(() => {
+    if (!estado || !convenio || estado.boe === convenio.boe) return
+    Promise.all([api.convenio(estado.boe), api.hoja(estado.boe)]).then(([c, h]) => { setConvenio(c); setHoja(h) })
+  }, [estado, convenio])
+
+  const hoyISO = hoja ? hoja.fechas[hoy] : ''
+  const dias = hoja?.semanas[semana] ?? []
+
+  function irA(fecha: string | null | undefined) {
+    if (!hoja || !fecha) return
+    const d = hoja.fechas.indexOf(fecha)
+    if (d < 0) return
+    setSemana(hoja.semanas.findIndex(s => s.includes(d)))
+    if (vista !== 'semana') setVista(d)
   }
 
-  function aplicarEdicion(p: Pendiente, acordada: boolean) {
-    const pactados = acordada ? p.edicion.nuevos.filter(i => i.nivel === 'acuerdo') : []
-    const claves = new Set(pactados.map(claveInc))
-    setCuadrante(p.edicion.cuadrante)
-    setIncs(p.edicion.incumplimientos.map(i => (claves.has(claveInc(i)) ? { ...i, pactado: true } : i)))
-    setAcuerdos([...acuerdos, ...pactados.map(i => ({ persona: i.persona!, tipo: i.tipo, dias: i.dias, mensaje: i.mensaje }))])
-    const previa = editadas.find(e => e.persona === p.persona && e.dia === p.dia)
-    const reglas = [...(previa?.pactos ?? []), ...pactados.map(i => i.regla!)]
-    setEditadas([...editadas.filter(e => e !== previa), {
-      persona: p.persona, dia: p.dia, antes: previa ? previa.antes : p.antes, despues: p.despues,
-      pactos: reglas.filter((r, i) => reglas.findIndex(x => x.tipo === r.tipo) === i),
-    }])
-    setAvisos(p.edicion.nuevos.filter(i => i.nivel === 'aviso'))
-    setPendiente(null)
+  function aplicar(r: RespuestaAccion) {
+    setEstado(r.estado); setHistorial(r.historial); setIncs(r.incumplimientos); setResaltar(r.resaltar)
+    irA(r.ir_a)
   }
 
-  // Teclado de hoja de cálculo sobre la celda seleccionada: Supr libra, F2 o Intro editan, una cifra empieza a escribir.
+  async function accion(nombre: string, args: Record<string, unknown>) {
+    if (!estado || !hoja) return
+    setOcupado(true); setMenu(null)
+    try {
+      const r = await api.accion(estado, historial, nombre, args, hoyISO)
+      if (r.nivel === 'bloqueo' || r.nivel === 'acuerdo') {
+        setPendiente({ nivel: r.nivel, que: r.texto.split('\n')[0], persona: String(args.persona ?? ''), incidencias: r.incidencias ?? [], nombre, args })
+        irA(r.ir_a)
+        return
+      }
+      const cambio = r.historial.length !== historial.length
+      aplicar(r)
+      if (nombre === 'deshacer') setAviso({ texto: 'Deshecho.' })
+      else if (r.nivel === 'aviso') setAviso({ texto: 'Hecho, con avisos.', detalle: (r.incidencias ?? []).map(i => i.mensaje).slice(0, 3).join(' · '), deshacer: true })
+      else setAviso({ texto: cambio ? r.texto.split('\n')[0] : r.texto, deshacer: cambio })
+    } catch (e) {
+      setAviso({ texto: String(e) })
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  async function enviar(texto: string) {
+    if (!estado || pensando) return
+    setItems(it => [...it, { tipo: 'usuario', texto }])
+    setPensando(true)
+    try {
+      await api.agente(estado, historial, mensajes, texto, hoyISO, ev => {
+        if (ev.tipo === 'accion') setItems(it => [...it, { tipo: 'paso', nombre: ev.nombre, texto: ev.texto, nivel: ev.nivel }])
+        else if (ev.tipo === 'error') setItems(it => [...it, { tipo: 'error', texto: ev.texto }])
+        else {
+          setEstado(ev.estado); setHistorial(ev.historial); setIncs(ev.incumplimientos); setMensajes(ev.mensajes)
+          if (ev.resaltar.length) setResaltar(ev.resaltar)
+          irA(ev.ir_a)
+          if (ev.respuesta) setItems(it => [...it, { tipo: 'asistente', texto: ev.respuesta }])
+        }
+      })
+    } catch (e) {
+      setItems(it => [...it, { tipo: 'error', texto: String(e) }])
+    } finally {
+      setPensando(false)
+    }
+  }
+
+  function abrirEditor(s: Seleccion, inicial?: string) {
+    if (!estado) return
+    const el = document.querySelector(`[data-celda="${CSS.escape(clave(s.persona, s.dia))}"]`)
+    const r = el?.getBoundingClientRect()
+    const t = estado.cuadrante[s.persona][s.dia]
+    setEditor({ s, x: r?.left ?? 200, y: r?.top ?? 200, texto: inicial ?? (t ? fmt(t).replace('–', '-') : '') })
+    requestAnimationFrame(() => { if (!inicial) editorRef.current?.select() })
+  }
+
+  function cambiarTurno(s: Seleccion, turno: string) {
+    if (!hoja) return
+    accion('cambiar_turno', { persona: s.persona, dia: hoja.fechas[s.dia], turno: turno.trim() || 'libre' })
+  }
+
+  // Teclado de hoja de cálculo sobre la celda seleccionada.
   useEffect(() => {
     function tecla(e: KeyboardEvent) {
-      if (!celda || propuesta || pendiente || dialogoAusencia || elegir || document.activeElement === entrada.current) return
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); editar(null) }
-      else if (e.key === 'F2' || e.key === 'Enter') { e.preventDefault(); empezar() }
-      else if (/^[0-9]$/.test(e.key)) { e.preventDefault(); empezar(e.key) }
+      const a = document.activeElement
+      const enCampo = a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement
+      if (enCampo || editor || pendiente || ausencia || elegir || !estado || !hoja) return
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (historial.length) accion('deshacer', {}); return }
+      if (!seleccion || e.ctrlKey || e.metaKey || e.altKey) return
+      const personas = hoja.plantilla.map(p => p.nombre)
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); cambiarTurno(seleccion, 'libre') }
+      else if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); abrirEditor(seleccion) }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const i = personas.indexOf(seleccion.persona) + (e.key === 'ArrowDown' ? 1 : -1)
+        if (personas[i]) setSeleccion({ ...seleccion, persona: personas[i] })
+      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && vista === 'semana') {
+        e.preventDefault()
+        const d = seleccion.dia + (e.key === 'ArrowRight' ? 1 : -1)
+        if (dias.includes(d)) setSeleccion({ ...seleccion, dia: d })
+      } else if (/^[0-9a-zñ]$/i.test(e.key)) { e.preventDefault(); abrirEditor(seleccion, e.key) }
     }
     window.addEventListener('keydown', tecla)
     return () => window.removeEventListener('keydown', tecla)
   })
 
-  function teclaEntrada(e: TeclaReact<HTMLInputElement>) {
-    if (e.key === 'Escape') { setTexto(null); entrada.current?.blur() }
-    if (e.key !== 'Enter') return
-    const turno = leerTurno(texto ?? '')
-    if (turno === undefined) {
-      setError(`«${texto}» no es un turno. Escribe 7-15, 22-6 para una noche o déjalo vacío para librar.`)
-      return
-    }
-    setTexto(null); entrada.current?.blur()
-    editar(turno)
+  useEffect(() => {
+    if (!aviso) return
+    const t = setTimeout(() => setAviso(null), aviso.deshacer ? 8000 : 5000)
+    return () => clearTimeout(t)
+  }, [aviso])
+
+  if (!estado || !hoja || !convenio) {
+    return (
+      <div className="app sin-chat">
+        <div className="barra"><span className="marca">Cuadrante</span></div>
+        <div className="centro">
+          {error ? <p className="cargando" style={{ color: 'var(--mal)' }}>{error}</p> : !elegir && <p className="cargando">Abriendo el cuadrante…</p>}
+        </div>
+        {elegir && convenios.length > 0 && (
+          <DialogoConvenio convenios={convenios} actual={null} onElegir={b => { setElegir(false); abrir(b) }} />
+        )}
+      </div>
+    )
   }
 
-  async function cubrir(a: Ausencia) {
-    if (!boe || !cuadrante) return
-    setDialogoAusencia(null); setNuevaAusencia(a); setPropuesta(null); setCalculando(true); setError(null)
-    const d = hoja!.fechas.indexOf(a.fecha)
-    setSemana(hoja!.semanas.findIndex(s => s.includes(d)))
-    setVista((new Date(a.fecha).getDay() + 6) % 7)
-    try {
-      setPropuesta(await api.replanificar(boe, cuadrante, [...ausencias, a], acuerdos))
-    } catch (e) {
-      setError(String(e))
-    } finally {
-      setCalculando(false)
-    }
+  const abiertos = incs.filter(i => !i.pactado).length
+  const primero = new Date(hoja.fechas[dias[0]]), ultimo = new Date(hoja.fechas[dias[dias.length - 1]])
+  const props = {
+    hoja, estado, hoy, seleccion,
+    resaltar: new Set(resaltar.map(([p, d]) => clave(p, d))),
+    pactadas: new Set(estado.acuerdos.flatMap(a => a.dias.map(d => clave(a.persona, d)))),
+    onSeleccion: (s: Seleccion) => { setSeleccion(s); setMenu(null) },
+    onEditar: (s: Seleccion) => abrirEditor(s),
+    onMenu: (s: Seleccion, e: MouseEvent) => setMenu({ s, x: e.clientX, y: e.clientY }),
   }
-
-  function aplicar() {
-    if (!propuesta?.cuadrante || !nuevaAusencia) return
-    setCuadrante(propuesta.cuadrante)
-    setAusencias([...ausencias, nuevaAusencia])
-    setIncs(propuesta.incumplimientos)
-    setPropuesta(null); setNuevaAusencia(null); setAvisos([])
-  }
-
-  function descartar() { setPropuesta(null); setNuevaAusencia(null); setError(null) }
-
-  // Nota de una celda cambiada: qué clase de hora es y de qué regla sale; o qué se editó a mano y con qué acuerdo.
-  function notaCambio(e: MouseEvent, persona: string, d: number) {
-    const c = cambios.find(x => x.persona === persona && x.dia === d)
-    const ed = editadas.find(x => x.persona === persona && x.dia === d)
-    if ((!c || !propuesta) && ed) {
-      setNota({
-        x: e.clientX, y: e.clientY,
-        titulo: `Editado a mano: ${ed.antes ? fmt(ed.antes) : 'libre'} → ${ed.despues ? fmt(ed.despues) : 'libre'}`,
-        texto: ed.pactos.length
-          ? `Con acuerdo de ${persona}. ${ed.pactos.map(r => `${articulo({ ...r, cita: r.cita_pacto ?? r.cita })}: «${(r.cita_pacto ?? r.cita).texto}»`).join(' ')}`
-          : 'Sin nada que pactar.',
-      })
-      return
-    }
-    if (!c || !propuesta) return
-    const clases = Object.entries(c.horas) as [Clase, number][]
-    const reglas = clases.map(([cl]) => propuesta.opciones[persona].find(o => o.clase === cl)?.regla).filter(Boolean)
-    setNota({
-      x: e.clientX, y: e.clientY,
-      titulo: `${persona}: ${c.antes ? fmt(c.antes) : 'libre'} → ${fmt(c.despues)}`,
-      texto: clases.map(([cl, h]) => `+${h} h ${NOMBRE_CLASE[cl].toLowerCase()}`).join(', ')
-        + (reglas.length ? `. ${reglas.map(r => `${articulo(r!)}: «${r!.cita.texto}»`).join(' ')}` : ''),
-    })
-  }
-
-  // Barra de fórmulas: dirección de la celda y lo que hay en ella.
-  const formula = useMemo(() => {
-    if (!hoja || !mostrado || !seleccion) return { celda: '', texto: '', cita: '' }
-    const filas = hoja.plantilla.map(p => p.nombre)
-    const fila = seleccion.fila === 'faltan' ? filas.length + 3 : seleccion.fila === 'hay' ? filas.length + 4 : filas.indexOf(seleccion.fila) + 2
-    const col = vista === 'semana' ? dias.indexOf(seleccion.col) : seleccion.col
-    const celda = `${COL(col + 2)}${fila}`
-    const d = vista === 'semana' ? seleccion.col : dia!
-    if (seleccion.fila === 'faltan' || seleccion.fila === 'hay') {
-      const h = seleccion.col
-      return { celda, texto: `=COBERTURA(${String(h).padStart(2, '0')}:00)  hacen falta ${hoja.necesidad[d][h]}`, cita: '' }
-    }
-    const t = mostrado[seleccion.fila][d]
-    const c = cambios.find(x => x.persona === seleccion.fila && x.dia === d)
-    const aus = ausencias.find(a => a.persona === seleccion.fila && a.fecha === hoja.fechas[d]) ?? (nuevaAusencia?.persona === seleccion.fila && nuevaAusencia.fecha === hoja.fechas[d] ? nuevaAusencia : null)
-    if (!t) return { celda, texto: `${seleccion.fila} · libra`, cita: '' }
-    let texto = `${seleccion.fila} · ${horas(t)} h`
-    let cita = ''
-    if (aus) texto += ` · ausente (${aus.motivo}${aus.desde != null ? ` ${aus.desde}–${aus.hasta}` : ''})`
-    if (c && propuesta) {
-      const [[cl, hh]] = Object.entries(c.horas) as [Clase, number][]
-      const r = propuesta.opciones[seleccion.fila].find(o => o.clase === cl)?.regla
-      texto += ` · +${hh} h ${NOMBRE_CLASE[cl].toLowerCase()}`
-      if (r) cita = `${articulo(r)}: «${r.cita.texto}»`
-    }
-    return { celda, texto, cita }
-  }, [hoja, mostrado, seleccion, vista, dia, dias, cambios, ausencias, nuevaAusencia, propuesta])
-
-  const suma = hoja && mostrado && seleccion && hoja.plantilla.some(p => p.nombre === seleccion.fila)
-    ? dias.reduce((s, d) => s + horas(mostrado[seleccion.fila][d]), 0) : null
-
-  const mes = hoja ? MESES[new Date(hoja.fechas[0]).getMonth()] : ''
-  const props = hoja && mostrado ? {
-    hoja, cuadrante: mostrado, cambios, seleccion,
-    editadas: new Set(editadas.map(e => clave(e.persona, e.dia))),
-    onEditar: () => empezar(),
-    ausencias: nuevaAusencia ? [...ausencias, nuevaAusencia] : ausencias,
-    onSeleccion: setSeleccion,
-    onAusencia: (persona: string, d: number) => setDialogoAusencia({ persona, dia: d }),
-    onNota: notaCambio,
-    onSinNota: () => setNota(null),
-  } : null
+  const moverSemana = (n: number) => { setSemana(n); if (vista !== 'semana') setVista(hoja.semanas[n][0]) }
 
   return (
-    <div className="ventana">
-      <div className="titulo">
-        <Icono />
-        <span>Cuadrante</span>
-        {convenio && <span className="sub">— {convenio.nombre.toLowerCase()} · {mes} 2026</span>}
-      </div>
-
-      <nav className="menu">
-        <button onClick={() => setElegir(true)}><u>C</u>onvenio…</button>
-        <button onClick={() => hoja && seleccion && seleccion.fila !== 'faltan' && seleccion.fila !== 'hay'
-          ? setDialogoAusencia({ persona: seleccion.fila, dia: vista === 'semana' ? seleccion.col : dia! })
-          : hoja && setDialogoAusencia({ persona: hoja.plantilla[0].nombre, dia: dia ?? dias[0] })}>
-          <u>I</u>nsertar ausencia…
-        </button>
-        <button onClick={() => setVista(vista === 'semana' ? 0 : 'semana')}><u>V</u>er {vista === 'semana' ? 'día' : 'semana'}</button>
-      </nav>
-
-      <div className="herramientas">
-        <label>Semana
-          <select value={semana} onChange={e => { setSemana(Number(e.target.value)); setSeleccion(null) }} disabled={!hoja}>
-            {hoja?.semanas.map((s, i) => {
-              const a = new Date(hoja.fechas[s[0]]), b = new Date(hoja.fechas[s[s.length - 1]])
-              return <option key={i} value={i}>{a.getDate()}–{b.getDate()} de {MESES[b.getMonth()]}</option>
-            })}
+    <div className={`app ${chatAbierto ? '' : 'sin-chat'}`}>
+      <div className="barra">
+        <span className="marca">Cuadrante</span>
+        <button className="chip" onClick={() => setElegir(true)} title="Cambiar de convenio">{convenio.nombre}</button>
+        <div className="grupo">
+          <label htmlFor="hoy">Hoy es</label>
+          <select id="hoy" value={hoy} onChange={e => setHoy(Number(e.target.value))}>
+            {hoja.fechas.map((f, i) => <option key={f} value={i}>{NOMBRE_DIA[diaSemana(f)]} {new Date(f).getDate()}</option>)}
           </select>
-        </label>
-        <span className="sep" />
-        <span className="apagado">{hoja ? `${hoja.plantilla.length} personas · apertura de ${hoja.apertura.desde} a ${hoja.apertura.hasta}` : ''}</span>
-        <div className="leyenda">
-          <span><i style={{ background: 'var(--manana)' }} />Mañana</span>
-          <span><i style={{ background: 'var(--tarde)' }} />Tarde</span>
-          <span><i style={{ background: 'var(--noche)' }} />Noche</span>
-          <span><i style={{ background: 'var(--ausencia)' }} />Ausencia</span>
-          <span><i style={{ background: 'var(--propuesta)' }} />Propuesta</span>
         </div>
+        <div className="grupo">
+          <button className="chip" disabled={semana === 0} onClick={() => moverSemana(semana - 1)} aria-label="Semana anterior">‹</button>
+          <span>{primero.getDate()}–{ultimo.getDate()} de {MESES[ultimo.getMonth()]}</span>
+          <button className="chip" disabled={semana === hoja.semanas.length - 1} onClick={() => moverSemana(semana + 1)} aria-label="Semana siguiente">›</button>
+        </div>
+        <div className="grupo">
+          <button className="chip" aria-pressed={vista === 'semana'} onClick={() => setVista('semana')}>Semana</button>
+          {dias.map(d => (
+            <button key={d} className="chip" aria-pressed={vista === d} onClick={() => setVista(d)}
+              title={`${NOMBRE_DIA[diaSemana(hoja.fechas[d])]} ${new Date(hoja.fechas[d]).getDate()}`}>
+              {DIAS[diaSemana(hoja.fechas[d])]}
+            </button>
+          ))}
+        </div>
+        <button className="chip empuja" disabled={!historial.length || ocupado} onClick={() => accion('deshacer', {})} title="Ctrl+Z">Deshacer</button>
+        <button className={`chip estado-cuadrante ${abiertos ? 'mal' : ''}`} onClick={() => setCajon('problemas')}>
+          <span className="bola" />{abiertos ? `${abiertos} incumplimientos` : 'Cumple el convenio'}
+        </button>
+        <button className="chip" onClick={() => setCajon(cajon === 'convenio' ? null : 'convenio')}>Reglas</button>
+        {!chatAbierto && <button className="chip" onClick={() => setChatAbierto(true)}>Asistente</button>}
       </div>
 
-      <div className="formula">
-        <div className="nombre-celda hundido">{formula.celda}</div>
-        <div className="fx">fx</div>
-        <div className="contenido hundido">
-          {celda && (
-            <input ref={entrada} aria-label="Turno" placeholder="libre" readOnly={!!propuesta}
-              value={texto ?? valorCelda} onFocus={() => texto === null && !propuesta && setTexto(valorCelda)}
-              onChange={e => setTexto(e.target.value)} onKeyDown={teclaEntrada} onBlur={() => setTexto(null)} />
-          )}
-          {formula.texto}<span className="cita">{formula.cita}</span>
-        </div>
+      <div className="leyenda">
+        {LEYENDA.map(([c, n]) => <span key={c}><i className={`c-${c}`} />{n}</span>)}
+        <span><i className="libre" />Libre</span>
+        <span><span className="marca-resaltado" />Último cambio</span>
+        <span className="apagado" style={{ marginLeft: 'auto' }}>
+          {ocupado ? 'Calculando…' : 'Doble clic o escribe sobre una celda para cambiar el turno · clic derecho para más'}
+        </span>
       </div>
 
-      <div className="trabajo">
-        <main className="hoja">
-          {props && (vista === 'semana'
-            ? <VistaSemana {...props} semana={dias} />
-            : <VistaDia {...props} dia={dia!} />)}
-          {!hoja && boe && !error && <p style={{ padding: 16 }} className="apagado">Abriendo el cuadrante…</p>}
-        </main>
-        {convenio && hoja
-          ? <Panel convenio={convenio} hoja={hoja} incumplimientos={incumplimientos} pactados={incs.length - incumplimientos}
-              acuerdos={acuerdos} avisos={avisos} ausencias={ausencias}
-              propuesta={propuesta} nuevaAusencia={nuevaAusencia} calculando={calculando} error={error}
-              onNota={setNota} onAplicar={aplicar} onDescartar={descartar}
-              onAusencia={() => setDialogoAusencia({ persona: hoja.plantilla[0].nombre, dia: dia ?? dias[0] })} />
-          : <aside className="panel">{error && <section><p className="error">{error}</p></section>}</aside>}
-      </div>
+      <main className="centro" onMouseDown={() => setMenu(null)}>
+        {vista === 'semana' ? <VistaSemana {...props} semana={dias} /> : <VistaDia {...props} dia={vista} />}
+      </main>
 
-      <div className="pestanas">
-        <div className="flechas">
-          <button className="boton" disabled={semana === 0} onClick={() => setSemana(semana - 1)} aria-label="Semana anterior">◄</button>
-          <button className="boton" disabled={!hoja || semana === hoja.semanas.length - 1} onClick={() => setSemana(semana + 1)} aria-label="Semana siguiente">►</button>
+      {chatAbierto && <Chat items={items} pensando={pensando} onEnviar={enviar} onCerrar={() => setChatAbierto(false)} />}
+
+      {editor && (
+        <input ref={editorRef} className="cifra" aria-label="Turno"
+          style={{ position: 'fixed', left: editor.x, top: editor.y, zIndex: 35, width: 150, padding: '6px 8px', border: '2px solid var(--negro)', borderRadius: 6, background: '#fff' }}
+          value={editor.texto} placeholder="7-15, tarde, libre…" autoFocus
+          onChange={e => setEditor({ ...editor, texto: e.target.value })}
+          onBlur={() => setEditor(null)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setEditor(null)
+            if (e.key === 'Enter') { const { s, texto } = editor; setEditor(null); cambiarTurno(s, texto) }
+          }} />
+      )}
+
+      {menu && (
+        <div className="menu-ctx" style={{ left: menu.x, top: menu.y }}>
+          <button onClick={() => { setMenu(null); abrirEditor(menu.s) }}>Cambiar turno…</button>
+          <button onClick={() => cambiarTurno(menu.s, 'libre')}>Dejar libre</button>
+          <button onClick={() => { setMenu(null); setAusencia(menu.s) }}>Marcar ausencia…</button>
         </div>
-        <div className={`pestana ${vista === 'semana' ? 'activa' : ''}`} onClick={() => setVista('semana')}>Semana</div>
-        {hoja && dias.map((d, i) => {
-          const f = new Date(hoja.fechas[d])
-          return (
-            <div key={d} className={`pestana ${vista === i ? 'activa' : ''}`} onClick={() => setVista(i)}>
-              <span className={i >= 5 ? 'finde' : ''}>{DIAS[i]} {f.getDate()}</span>
+      )}
+
+      {cajon && <Cajon pestana={cajon} convenio={convenio} hoja={hoja} incumplimientos={incs} acuerdos={estado.acuerdos} onPestana={setCajon} onCerrar={() => setCajon(null)} />}
+
+      {ausencia && (
+        <DialogoAusencia hoja={{ ...hoja, cuadrante: estado.cuadrante }} persona={ausencia.persona} dia={ausencia.dia} hoy={hoyISO}
+          onCerrar={() => setAusencia(null)}
+          onAceptar={(a: DatosAusencia) => { setAusencia(null); accion('marcar_ausencia', { ...a }) }} />
+      )}
+
+      {pendiente && (
+        <DialogoNivel {...pendiente}
+          onCerrar={() => setPendiente(null)}
+          onAcordar={() => { const p = pendiente; setPendiente(null); accion(p.nombre, { ...p.args, con_acuerdo: true }) }} />
+      )}
+
+      {elegir && (
+        <DialogoConvenio convenios={convenios} actual={estado.boe}
+          onElegir={b => { setElegir(false); if (b !== estado.boe) accion('cambiar_convenio', { convenio: b }) }}
+          onCerrar={() => setElegir(false)} />
+      )}
+
+      {aviso && (
+        <div className="aviso-flotante" role="status">
+          <span>{aviso.texto}</span>
+          {aviso.detalle && <q>{aviso.detalle}</q>}
+          {aviso.deshacer && (
+            <div className="acciones">
+              <button className="boton" onClick={() => { setAviso(null); accion('deshacer', {}) }}>Deshacer</button>
             </div>
-          )
-        })}
-      </div>
-
-      <div className="estado">
-        <div className={`hundido ${calculando ? 'reloj' : ''}`} style={{ background: 'none' }}>{calculando ? 'Calculando…' : error ? 'Error' : 'Listo'}</div>
-        <div className="hundido" style={{ background: 'none' }}>Incumplimientos: {propuesta ? propuesta.incumplimientos.filter(i => !i.pactado).length : incumplimientos}</div>
-        <div className="hundido" style={{ background: 'none' }}>{suma != null ? `Suma semana: ${suma} h` : ' '}</div>
-        <div className="hundido" style={{ background: 'none' }}>{convenio?.boe ?? ''}</div>
-      </div>
-
-      {nota && (
-        <div className="nota" style={{ left: Math.min(nota.x + 14, window.innerWidth - 340), top: nota.y + 14 }}>
-          <b>{nota.titulo}</b>
-          {nota.cita ? <q>{nota.texto}</q> : <span>{nota.texto}</span>}
+          )}
         </div>
-      )}
-
-      {elegir && convenios.length > 0 && (
-        <DialogoConvenio convenios={convenios} actual={boe}
-          onElegir={b => { setBoe(b); setElegir(false) }}
-          onCerrar={boe ? () => setElegir(false) : undefined} />
-      )}
-      {pendiente && hoja && (
-        <DialogoEdicion persona={pendiente.persona} antes={pendiente.antes} despues={pendiente.despues} edicion={pendiente.edicion}
-          dia={`${DIAS[(new Date(hoja.fechas[pendiente.dia]).getDay() + 6) % 7]} ${new Date(hoja.fechas[pendiente.dia]).getDate()}`}
-          onAcordar={() => aplicarEdicion(pendiente, true)} onCerrar={() => setPendiente(null)} />
-      )}
-      {dialogoAusencia && hoja && mostrado && (
-        <DialogoAusencia hoja={{ ...hoja, cuadrante: mostrado }} persona={dialogoAusencia.persona} dia={dialogoAusencia.dia}
-          onAceptar={cubrir} onCerrar={() => setDialogoAusencia(null)} />
       )}
     </div>
   )

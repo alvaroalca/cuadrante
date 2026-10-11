@@ -1,6 +1,6 @@
 // Tipos y llamadas a la API del motor (motor/src/motor/api.py).
 
-export type Turno = [number, number] // [inicio, fin] en horas
+export type Turno = [number, number] // [inicio, fin] en horas; fin > 24 si cruza la medianoche
 export type Cuadrante = Record<string, (Turno | null)[]>
 
 export interface Cita {
@@ -53,6 +53,9 @@ export interface Persona {
   objetivo: number
 }
 
+// Qué pasa con un cambio que provoca un incumplimiento (ver Incumplimiento.nivel en el motor).
+export type Nivel = 'aviso' | 'acuerdo' | 'bloqueo'
+
 export interface Incumplimiento {
   tipo: string
   mensaje: string
@@ -63,22 +66,12 @@ export interface Incumplimiento {
   pactado: boolean
 }
 
-// Qué hace una edición a mano que provoca un incumplimiento (ver Incumplimiento.nivel en el motor).
-export type Nivel = 'aviso' | 'acuerdo' | 'bloqueo'
-
-/** Acuerdo individual registrado al confirmar una edición: cubre justo esos incumplimientos. */
+/** Acuerdo individual registrado al confirmar un cambio: cubre justo esos incumplimientos. */
 export interface Acuerdo {
   persona: string
   tipo: string
   dias: number[]
   mensaje: string
-}
-
-export interface Edicion {
-  nivel: Nivel | 'ok'
-  nuevos: Incumplimiento[]
-  cuadrante: Cuadrante
-  incumplimientos: Incumplimiento[]
 }
 
 export interface Hoja {
@@ -102,31 +95,41 @@ export interface Ausencia {
   imprevista: boolean
 }
 
+/** Clase legal de una hora añadida al cubrir una ausencia. */
 export type Clase = 'redistribucion' | 'voluntarias' | 'pactadas' | 'extras'
 
-export interface Cambio {
-  persona: string
-  dia: number
-  antes: Turno | null
-  despues: Turno
-  horas: Partial<Record<Clase, number>>
+/** Todo lo que cambia con las acciones. Viaja entero al motor, que devuelve el nuevo. */
+export interface Estado {
+  boe: string
+  cuadrante: Cuadrante
+  ausencias: Ausencia[]
+  acuerdos: Acuerdo[]
+  clases: Record<string, Record<string, Clase>> // "persona|día" -> {hora: clase}
 }
 
-export interface Opcion {
-  clase: Clase
-  puede: boolean
-  motivo: string
-  regla: Regla | null
-}
-
-export interface Replan {
-  estado: string
-  cuadrante: Cuadrante | null
-  cambios: Cambio[]
-  sin_cubrir: { dia: number; hora: number; faltan: number }[]
-  opciones: Record<string, Opcion[]>
+export interface RespuestaAccion {
+  estado: Estado
+  historial: Estado[]
+  texto: string
+  nivel?: Nivel | 'ok' | null
+  ir_a?: string | null
+  resaltar: [string, number][]
+  incidencias?: Incumplimiento[]
   incumplimientos: Incumplimiento[]
 }
+
+/** Mensaje de la conversación con el modelo, tal como lo guarda Ollama. */
+export interface MensajeModelo {
+  role: 'user' | 'assistant' | 'tool' | 'system'
+  content: string
+  tool_calls?: unknown[]
+  tool_name?: string
+}
+
+export type EventoAgente =
+  | { tipo: 'accion'; nombre: string; args: Record<string, unknown>; texto: string; nivel: Nivel | 'ok' | null }
+  | { tipo: 'fin'; respuesta: string; estado: Estado; historial: Estado[]; mensajes: MensajeModelo[]; resaltar: [string, number][]; ir_a: string | null; incumplimientos: Incumplimiento[] }
+  | { tipo: 'error'; texto: string }
 
 async function pedir<T>(ruta: string, cuerpo?: unknown): Promise<T> {
   const r = await fetch(`/api${ruta}`, cuerpo === undefined ? undefined : {
@@ -142,17 +145,28 @@ export const api = {
   convenios: () => pedir<ConvenioResumen[]>('/convenios'),
   convenio: (boe: string) => pedir<Convenio>(`/convenios/${boe}`),
   hoja: (boe: string) => pedir<Hoja>(`/cuadrante/${boe}`),
-  editar: (boe: string, cuadrante: Cuadrante, persona: string, dia: number, turno: Turno | null, ausencias: Ausencia[], acuerdos: Acuerdo[]) =>
-    pedir<Edicion>(`/editar/${boe}`, { cuadrante, persona, dia, turno, ausencias, acuerdos }),
-  replanificar: (boe: string, cuadrante: Cuadrante, ausencias: Ausencia[], acuerdos: Acuerdo[]) =>
-    pedir<Replan>(`/replanificar/${boe}`, { cuadrante, ausencias, acuerdos }),
-}
-
-export const NOMBRE_CLASE: Record<Clase, string> = {
-  redistribucion: 'Redistribución',
-  voluntarias: 'Complementarias voluntarias',
-  pactadas: 'Complementarias pactadas',
-  extras: 'Horas extraordinarias',
+  accion: (estado: Estado, historial: Estado[], nombre: string, args: Record<string, unknown>, hoy: string) =>
+    pedir<RespuestaAccion>('/accion', { estado, historial, nombre, args, hoy }),
+  /** Va llamando a `alEvento` con cada paso del agente según llega. */
+  async agente(estado: Estado, historial: Estado[], mensajes: MensajeModelo[], texto: string, hoy: string,
+    alEvento: (e: EventoAgente) => void) {
+    const r = await fetch('/api/agente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado, historial, mensajes, texto, hoy }),
+    })
+    if (!r.ok || !r.body) throw new Error(`${r.status} ${await r.text()}`)
+    const lector = r.body.pipeThrough(new TextDecoderStream()).getReader()
+    let resto = ''
+    for (;;) {
+      const { value, done } = await lector.read()
+      if (done) break
+      resto += value
+      const lineas = resto.split('\n')
+      resto = lineas.pop()!
+      for (const l of lineas) if (l.trim()) alEvento(JSON.parse(l))
+    }
+  },
 }
 
 /** "art. 23" o "ET 34.3": cómo se cita una regla en pantalla. */

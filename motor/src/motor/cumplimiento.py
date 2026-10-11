@@ -237,11 +237,13 @@ def estado(ctx: Contexto, r: Regla) -> str:
     return "pendiente de implementar"
 
 
-def editar(ctx: Contexto, cuadrante: Cuadrante, persona: str, dia: int, turno: Turno | None,
-           acuerdos: list[Acuerdo] = ()) -> tuple[Cuadrante, list[Incumplimiento], list[Incumplimiento]]:
-    """Pone `turno` (None = libra) a la persona ese día. Devuelve el cuadrante editado, los
-    incumplimientos que trae la edición (sin los que ya había ni los pactados) y todos."""
-    antes = {i.clave for i in comprobar(ctx, cuadrante)}
-    nuevo = {**cuadrante, persona: [turno if d == dia else t for d, t in enumerate(cuadrante[persona])]}
-    todos = comprobar(ctx, nuevo)
+def editar_celdas(ctx: Contexto, cuadrante: Cuadrante, celdas: dict[tuple[str, int], Turno | None],
+                  acuerdos: list[Acuerdo] = (), pagadas: dict[str, int] | None = None
+                  ) -> tuple[Cuadrante, list[Incumplimiento], list[Incumplimiento]]:
+    """Pone a cada (persona, día) su turno (None = libra), todas a la vez: un intercambio se valida
+    entero. Devuelve el cuadrante editado, los incumplimientos que trae la edición (sin los que ya
+    había ni los pactados) y todos."""
+    antes = {i.clave for i in comprobar(ctx, cuadrante, pagadas)}
+    nuevo = {n: [celdas[n, d] if (n, d) in celdas else t for d, t in enumerate(fila)] for n, fila in cuadrante.items()}
+    todos = comprobar(ctx, nuevo, pagadas)
     return nuevo, [i for i in todos if i.clave not in antes and not i.pactado(acuerdos)], todos

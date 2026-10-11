@@ -48,7 +48,25 @@
 
 - `README.md`: qué hace, cómo arrancar y cómo implantar un convenio nuevo (BOE, agente, validador, revisión humana, ficha de empresa).
 
+## 11/10/2026: asistente con poder sobre el programa y estilo nuevo
+
+- **Primero, frases con qwen** (caja «Escriba una ausencia»): qwen3:4b extraía campos y el código resolvía fechas. Lección que se queda: comprobar lo dicho contra lo extraído (cada número y día de la semana de la frase tiene que llegar). Sin eso, un día que el modelo deja en blanco se leía como «hoy» sin avisar. Con la guarda: 0 errores silenciosos en 48 frases. La caja se quitó al llegar el asistente (absorbe el caso).
+- **Asistente** (petición de Álvaro, decisiones en CLAUDE.md): panel de chat a la derecha que puede hacer todo lo que se hace a mano. `motor/acciones.py` tiene las acciones (ver cuadrante, ver horas, incumplimientos, explicar regla, marcar ausencia, cambiar e intercambiar turno, ir a, cambiar convenio) y `motor/agente.py` el bucle con herramientas de Ollama. La web hace lo de la mano por `/api/accion` y el chat por `/api/agente` (NDJSON paso a paso): una sola vía. El estado viaja entero con su historial para deshacer. Se quitaron `/api/frase`, `/api/editar`, `/api/replanificar` y `/api/comprobar`.
+  - El modelo copia lo que dice el usuario y el código lo interpreta: «juebes», «el 12», «lunes que viene», «finde», «marat» → Marta, «de tarde» → 15-23, «22-6».
+  - Guarda antes de ejecutar algo que cambia el cuadrante: un número o día de la semana del mensaje que no llega a los argumentos → no se ejecuta y el modelo lo repite. Cazó «el miércoles 11» aplicado al miércoles 4.
+  - El modelo no redacta tras las herramientas: el texto lo escribe el código con la cita literal. Redactando inventaba horarios («de 3 a 11») y reglas.
+  - Acuerdo individual: pide el acuerdo de la persona con la cita, lo aplica al decir «sí» y queda registrado. Probado en contact center (Marta, art. 23).
+- **Banco** `demo/instrucciones.json` (41 instrucciones: detalladas, consultas, deshacer, faltas, vagas, sin dato, fuera de tema). qwen3:4b 38/41; los 3 fallos son preguntas para aclarar, ninguna acción equivocada. qwen3:8b 36/43 e inventa personas. qwen3:4b-instruct (sin razonamiento) 29/41 en 3 s, pero inventa reglas y dice «deshaciendo» sin deshacer: descartado.
+- **Clase por celda**: `replanificar` repartía mal las horas por clase (repetía el total de la persona en cada celda). Ahora se reparten entre las celdas, y el estado guarda la clase de cada hora añadida para pintarla. El comprobador recibe las horas pagadas aparte (complementarias, extras) para no contarlas contra el contrato.
+- **Estilo nuevo**: fuera Office XP. Señalética del metro de Nueva York; color por clase de hora (ver CLAUDE.md). Vista de semana con el día de 0 a 24 h en pequeño en cada celda; vista de día con una pista por persona. El panel lateral de reglas pasa a un cajón (Incumplimientos, Convenio, Acuerdos). Edición: doble clic o escribir sobre la celda (`7-15`, `tarde`, `libre`), Supr libra, Ctrl+Z deshace, clic derecho para ausencia. «Hoy es» se elige en la barra.
+- Probado con Edge headless: edición, ausencia a mano, vista de día, y el asistente en dependencia y en contact center (baja con faltas, acuerdo, regla, deshacer). Sin errores de consola.
+
+**Pendiente, por orden:**
+1. **Latencia del asistente**: 10-25 s por llamada. qwen3:4b razona en inglés dentro del texto (unos 1.800 tokens) aunque se le pida `think: false`; con herramientas Ollama no lo respeta. Probar a actualizar Ollama, o separar en dos llamadas (elegir herramienta con salida JSON de esquema cerrado, que con las frases tardaba 4 s).
+2. `explicar_regla` busca por palabras y falla («horas entre turnos» no encuentra el ET 34.3): que el modelo elija el tipo de regla de un enum.
+3. Smoke test de Álvaro de la web nueva.
+
 ## Siguiente
 
-1. Traducción de frases con qwen ("Carmen de baja el martes") y banco de frases para medirla.
+1. Lo pendiente de arriba.
 2. Reel y ficha del portfolio.

@@ -3,13 +3,21 @@
 Arrancar: cd motor && uv run uvicorn motor.api:app --reload
 """
 
+import json
+from datetime import date
+
+import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from motor.cumplimiento import Incumplimiento, comprobar, editar, estado
-from motor.empresa import RAIZ, Acuerdo, Ausencia, Contexto, cargar_convenio, cargar_empresa
+from motor.acciones import HISTORIAL, Estado, ejecutar, pagadas, tuplas
+from motor.acciones import contexto as contexto_estado
+from motor.agente import conversar
+from motor.cumplimiento import Incumplimiento, comprobar, estado
+from motor.empresa import RAIZ, Acuerdo, Contexto, cargar_convenio, cargar_empresa
 from motor.reglas import Regla
-from motor.replanificar import cuadrante_base, replanificar
+from motor.replanificar import cuadrante_base
 
 app = FastAPI(title="Cuadrante")
 
@@ -86,76 +94,58 @@ def cuadrante(boe: str):
     }
 
 
-def con_ausencias(ctx: Contexto, ausencias: list[Ausencia]) -> Contexto:
-    if not ausencias:
-        return ctx
-    e = ctx.empresa.model_copy(update={"ausencias": ctx.empresa.ausencias + ausencias})
-    return Contexto(e, ctx.convenio, ctx.reglas)
+# --- Acciones y agente: el estado entero viaja en cada petición, con su historial para deshacer ---
+
+def incumplimientos_de(e: Estado) -> list[dict]:
+    ctx = contexto_estado(e.boe, e.ausencias)
+    return [incumplimiento_json(i, e.acuerdos) for i in comprobar(ctx, tuplas(e.cuadrante), pagadas(e))]
 
 
-class Comprobar(BaseModel):
-    cuadrante: dict[str, list[list[int] | None]]
-    ausencias: list[Ausencia] = []
-    acuerdos: list[Acuerdo] = []
+class Accion(BaseModel):
+    estado: Estado
+    historial: list[Estado] = []
+    nombre: str
+    args: dict = {}
+    hoy: date
 
 
-@app.post("/api/comprobar/{boe}")
-def comprobar_cuadrante(boe: str, cuerpo: Comprobar):
-    ctx = con_ausencias(contexto(boe), cuerpo.ausencias)
-    return [incumplimiento_json(i, cuerpo.acuerdos) for i in comprobar(ctx, cuadrante_de(cuerpo.cuadrante))]
+@app.post("/api/accion")
+def accion(cuerpo: Accion):
+    """Lo que se hace a mano en la hoja, por la misma vía que el agente."""
+    e, historial = cuerpo.estado, cuerpo.historial
+    if cuerpo.nombre == "deshacer":
+        if not historial:
+            raise HTTPException(409, "No hay nada que deshacer")
+        e, historial = historial[-1], historial[:-1]
+        return {"estado": e, "historial": historial, "texto": "Deshecho.", "resaltar": [], "incumplimientos": incumplimientos_de(e)}
+    try:
+        r = ejecutar(cuerpo.nombre, e, cuerpo.hoy, cuerpo.args)
+    except httpx.HTTPError as x:
+        raise HTTPException(503, f"El motor no responde: {x}")
+    if r.cambio:
+        historial = [*historial, e][-HISTORIAL:]
+    return {"estado": r.estado, "historial": historial, "texto": r.texto, "nivel": r.nivel, "ir_a": r.ir_a,
+            "resaltar": r.resaltar, "incidencias": [incumplimiento_json(i) for i in r.incidencias],
+            "incumplimientos": incumplimientos_de(r.estado)}
 
 
-class Editar(Comprobar):
-    persona: str
-    dia: int
-    turno: tuple[int, int] | None  # None: libra; fin > 24 si cruza la medianoche
+class Mensaje(BaseModel):
+    estado: Estado
+    historial: list[Estado] = []
+    mensajes: list[dict] = []
+    texto: str
+    hoy: date
 
 
-@app.post("/api/editar/{boe}")
-def editar_celda(boe: str, cuerpo: Editar):
-    """Valida una edición a mano. `nivel` es lo peor que trae: ok, aviso, acuerdo o bloqueo."""
-    ctx = con_ausencias(contexto(boe), cuerpo.ausencias)
-    c = cuadrante_de(cuerpo.cuadrante)
-    if cuerpo.persona not in c or not 0 <= cuerpo.dia < ctx.n_dias:
-        raise HTTPException(422, "Persona o día fuera del cuadrante")
-    if cuerpo.turno and not (0 <= cuerpo.turno[0] < 24 and cuerpo.turno[0] < cuerpo.turno[1] <= cuerpo.turno[0] + 24):
-        raise HTTPException(422, "Turno no válido")
-    nuevo, nuevos, todos = editar(ctx, c, cuerpo.persona, cuerpo.dia, cuerpo.turno, cuerpo.acuerdos)
-    niveles = {i.nivel for i in nuevos}
-    return {
-        "nivel": next((n for n in ("bloqueo", "acuerdo", "aviso") if n in niveles), "ok"),
-        "nuevos": [incumplimiento_json(i) for i in nuevos],
-        "cuadrante": cuadrante_json(nuevo),
-        "incumplimientos": [incumplimiento_json(i, cuerpo.acuerdos) for i in todos],
-    }
-
-
-class Replanificar(BaseModel):
-    cuadrante: dict[str, list[list[int] | None]]
-    ausencias: list[Ausencia]
-    acuerdos: list[Acuerdo] = []
-
-
-@app.post("/api/replanificar/{boe}")
-def replanificar_cuadrante(boe: str, cuerpo: Replanificar):
-    ctx = contexto(boe)
-    for a in cuerpo.ausencias:
-        if a.fecha not in ctx.fechas:
-            raise HTTPException(422, f"{a.fecha} está fuera del periodo")
-    rp = replanificar(ctx, cuadrante_de(cuerpo.cuadrante), cuerpo.ausencias, acuerdos=cuerpo.acuerdos)
-    return {
-        "estado": rp.estado,
-        "cuadrante": cuadrante_json(rp.cuadrante) if rp.cuadrante else None,
-        "cambios": [
-            {"persona": c.persona, "dia": c.dia, "antes": list(c.antes) if c.antes else None,
-             "despues": list(c.despues), "horas": c.horas}
-            for c in rp.cambios
-        ],
-        "sin_cubrir": [{"dia": d, "hora": h, "faltan": n} for d, h, n in rp.sin_cubrir],
-        "opciones": {
-            n: [{"clase": o.clase, "puede": o.puede, "motivo": o.motivo,
-                 "regla": o.regla.model_dump(mode="json", exclude_none=True) if o.regla else None} for o in ops]
-            for n, ops in rp.opciones.items()
-        },
-        "incumplimientos": [incumplimiento_json(i, cuerpo.acuerdos) for i in rp.incumplimientos],
-    }
+@app.post("/api/agente")
+def agente(cuerpo: Mensaje):
+    """Una instrucción al agente. Responde NDJSON: un evento por acción y uno final con el estado."""
+    def eventos():
+        try:
+            for ev in conversar(cuerpo.estado, cuerpo.historial, cuerpo.mensajes, cuerpo.texto, cuerpo.hoy):
+                if ev["tipo"] == "fin":
+                    ev["incumplimientos"] = incumplimientos_de(Estado.model_validate(ev["estado"]))
+                yield json.dumps(ev, ensure_ascii=False, default=str) + "\n"
+        except httpx.HTTPError as x:
+            yield json.dumps({"tipo": "error", "texto": f"El modelo no responde (¿está Ollama arrancado?): {x}"}, ensure_ascii=False) + "\n"
+    return StreamingResponse(eventos(), media_type="application/x-ndjson")

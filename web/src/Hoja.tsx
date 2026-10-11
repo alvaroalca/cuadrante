@@ -1,192 +1,187 @@
 import type { MouseEvent } from 'react'
-import type { Ausencia, Cambio, Cuadrante, Hoja as DatosHoja, Turno } from './api'
+import type { Estado, Hoja as DatosHoja, Turno } from './api'
 
-export type Fila = string | 'faltan' | 'hay'
-export interface Seleccion { fila: Fila; col: number } // col: hora (vista día) o día (vista semana)
+export type ClaseHora = 'normal' | 'nocturna' | 'complementaria' | 'extra' | 'redistribucion' | 'ausencia'
+export interface Seleccion { persona: string; dia: number }
 
-interface Props {
-  hoja: DatosHoja
-  cuadrante: Cuadrante
-  ausencias: Ausencia[]
-  cambios: Cambio[]
-  editadas: Set<string> // `${persona}|${día}` editadas a mano
-  seleccion: Seleccion | null
-  onSeleccion: (s: Seleccion) => void
-  onEditar: () => void
-  onAusencia: (persona: string, dia: number) => void
-  onNota: (e: MouseEvent, persona: string, dia: number) => void
-  onSinNota: () => void
-}
+export const DIAS = 'LMXJVSD'
+export const NOMBRE_DIA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+export const LEYENDA: [ClaseHora, string][] = [
+  ['normal', 'Normal'], ['nocturna', 'Nocturna'], ['complementaria', 'Complementaria'],
+  ['extra', 'Extraordinaria'], ['redistribucion', 'Redistribución'], ['ausencia', 'Ausencia'],
+]
 
-const LETRAS = Array.from({ length: 27 }, (_, i) => (i < 26 ? String.fromCharCode(65 + i) : 'AA'))
-const HORAS = Array.from({ length: 24 }, (_, h) => h)
-
-/** Noche si empieza de 21 a 5, mañana si antes de las 14 y tarde si no. Basta para pintar como un responsable. */
-export const franja = (t: Turno) => (t[0] >= 21 || t[0] < 5 ? 'n' : t[0] < 14 ? 'm' : 't')
 export const horas = (t: Turno | null) => (t ? t[1] - t[0] : 0)
 const hh = (h: number) => String(h).padStart(2, '0')
 /** Un turno que cruza la medianoche acaba al día siguiente: 22–06. */
 export const fmt = (t: Turno) => `${hh(t[0])}–${hh(t[1] > 24 ? t[1] - 24 : t[1])}`
 export const clave = (persona: string, dia: number) => `${persona}|${dia}`
+export const diaSemana = (fecha: string) => (new Date(fecha).getDay() + 6) % 7
 
-function ausente(ausencias: Ausencia[], persona: string, fecha: string, h: number) {
-  return ausencias.some(a => a.persona === persona && a.fecha === fecha
+function ausente(e: Estado, persona: string, fecha: string, h: number) {
+  return e.ausencias.some(a => a.persona === persona && a.fecha === fecha
     && (a.desde == null || (a.desde <= h && h < (a.hasta ?? 24))))
 }
 
-function hayA(hoja: DatosHoja, c: Cuadrante, aus: Ausencia[], d: number, h: number) {
-  return hoja.plantilla.filter(p => {
-    const t = c[p.nombre][d]
-    return t && t[0] <= h && h < t[1] && !ausente(aus, p.nombre, hoja.fechas[d], h)
-  }).length
+/** Clase de la hora h (puede pasar de 24 si el turno cruza la medianoche) del turno de la persona el día d. */
+export function claseHora(hoja: DatosHoja, e: Estado, persona: string, d: number, h: number): ClaseHora {
+  if (h < 24 && ausente(e, persona, hoja.fechas[d], h)) return 'ausencia'
+  const c = e.clases[clave(persona, d)]?.[String(h)]
+  if (c === 'voluntarias' || c === 'pactadas') return 'complementaria'
+  if (c === 'extras') return 'extra'
+  if (c === 'redistribucion') return 'redistribucion'
+  const r = h % 24
+  return r >= 22 || r < 6 ? 'nocturna' : 'normal'
 }
 
-export function VistaDia({ dia, ...p }: Props & { dia: number }) {
-  const { hoja, cuadrante, ausencias, cambios, seleccion } = p
-  const fecha = hoja.fechas[dia]
-  const abierta = (h: number) => h >= hoja.apertura.desde && h < hoja.apertura.hasta
-  const sel = (fila: Fila, col: number) => seleccion?.fila === fila && seleccion.col === col
-  const filaSel = seleccion?.fila
-  const colSel = seleccion ? seleccion.col + 2 : -1
+/** Horas que se pintan el día d, de 0 a 24: su turno y lo que la noche de ayer trae a hoy. */
+function horasDelDia(hoja: DatosHoja, e: Estado, persona: string, d: number): { h: number; c: ClaseHora }[] {
+  const out: { h: number; c: ClaseHora }[] = []
+  const ayer = d > 0 ? e.cuadrante[persona][d - 1] : null
+  if (ayer && ayer[1] > 24) for (let h = 24; h < ayer[1]; h++) out.push({ h: h - 24, c: claseHora(hoja, e, persona, d - 1, h) })
+  const t = e.cuadrante[persona][d]
+  if (t) for (let h = t[0]; h < Math.min(t[1], 24); h++) out.push({ h, c: claseHora(hoja, e, persona, d, h) })
+  return out
+}
 
+/** Tramos seguidos de la misma clase, para pintarlos como un bloque. */
+function tramos(hs: { h: number; c: ClaseHora }[]) {
+  const out: { desde: number; hasta: number; c: ClaseHora }[] = []
+  for (const { h, c } of hs) {
+    const u = out[out.length - 1]
+    if (u && u.hasta === h && u.c === c) u.hasta++
+    else out.push({ desde: h, hasta: h + 1, c })
+  }
+  return out
+}
+
+function hayA(hoja: DatosHoja, e: Estado, d: number, h: number) {
+  return hoja.plantilla.filter(p => horasDelDia(hoja, e, p.nombre, d).some(x => x.h === h && x.c !== 'ausencia')).length
+}
+
+interface Props {
+  hoja: DatosHoja
+  estado: Estado
+  hoy: number
+  seleccion: Seleccion | null
+  resaltar: Set<string>
+  pactadas: Set<string>
+  onSeleccion: (s: Seleccion) => void
+  onEditar: (s: Seleccion, e: MouseEvent) => void
+  onMenu: (s: Seleccion, e: MouseEvent) => void
+}
+
+function Persona({ nombre, contrato, sub, celda }: { nombre: string; contrato: number; sub?: string; celda?: string }) {
+  return <th className="persona" data-celda={celda}><b>{nombre}</b><small>{contrato} h/sem{sub ? ` · ${sub}` : ''}</small></th>
+}
+
+export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
+  const { hoja, estado } = p
   return (
     <table className="rejilla">
       <thead>
         <tr>
-          <th className="num" />
-          {LETRAS.map((l, i) => <th key={l} className={i === colSel ? 'sel' : ''}>{l}</th>)}
+          <th className="persona">Persona</th>
+          {semana.map(d => {
+            const f = new Date(hoja.fechas[d])
+            const ds = diaSemana(hoja.fechas[d])
+            return <th key={d} className={`${d === p.hoy ? 'hoy' : ''} ${ds >= 5 ? 'finde' : ''}`}>{NOMBRE_DIA[ds]} {f.getDate()}{d === p.hoy ? ' · hoy' : ''}</th>
+          })}
+          <th className="total">Semana</th>
         </tr>
       </thead>
       <tbody>
-        <tr className="etiqueta" style={{ ['--i' as string]: 0 }}>
-          <th className="num">1</th>
-          <td className="nombre">Persona</td>
-          <td className="contrato">h/sem</td>
-          {HORAS.map(h => <td key={h} className={`hora ${abierta(h) ? '' : 'cerrado'}`}>{h}</td>)}
-          <td className="total">Día</td>
-        </tr>
-        {hoja.plantilla.map((pers, i) => {
-          const t = cuadrante[pers.nombre][dia]
-          const ayer = dia > 0 ? cuadrante[pers.nombre][dia - 1] : null
-          const sigue = ayer && ayer[1] > 24 ? ayer[1] - 24 : 0 // horas de la noche anterior que caen hoy
-          const cambio = cambios.find(c => c.persona === pers.nombre && c.dia === dia)
-          const editada = p.editadas.has(clave(pers.nombre, dia))
+        {hoja.plantilla.map(pers => {
+          const total = semana.reduce((s, d) => s + horas(estado.cuadrante[pers.nombre][d]), 0)
           return (
-            <tr key={pers.nombre} style={{ ['--i' as string]: i + 1 }}>
-              <th className={`num ${filaSel === pers.nombre ? 'sel' : ''}`}>{i + 2}</th>
-              <td className="nombre">{pers.nombre}</td>
-              <td className="contrato">{pers.contrato}</td>
-              {HORAS.map(h => {
-                const dentro = t && t[0] <= h && h < t[1]
-                const aus = dentro && ausente(ausencias, pers.nombre, fecha, h)
-                const nuevo = dentro && cambio && !(cambio.antes && cambio.antes[0] <= h && h < cambio.antes[1])
-                const clases = ['hora']
-                if (!abierta(h)) clases.push('cerrado')
-                if (dentro) clases.push(aus ? 'aus' : nuevo ? 'nuevo' : franja(t!))
-                else if (h < sigue) clases.push('n', 'sigue')
-                if (dentro && h === t![0]) clases.push('ini')
-                if (dentro && h === t![1] - 1) clases.push('fin')
-                if ((cambio || editada) && dentro && h === t![0]) clases.push('comentado')
-                if (sel(pers.nombre, h)) clases.push('activa')
+            <tr key={pers.nombre}>
+              <Persona nombre={pers.nombre} contrato={pers.contrato} />
+              {semana.map(d => {
+                const t = estado.cuadrante[pers.nombre][d]
+                const s = { persona: pers.nombre, dia: d }
+                const k = clave(pers.nombre, d)
+                const aus = t && ausente(estado, pers.nombre, hoja.fechas[d], t[0])
+                const cls = ['celda']
+                if (p.seleccion?.persona === pers.nombre && p.seleccion.dia === d) cls.push('sel')
+                if (p.resaltar.has(k)) cls.push('resaltada')
+                if (p.pactadas.has(k)) cls.push('pactada')
                 return (
-                  <td
-                    key={h}
-                    className={clases.join(' ')}
-                    onMouseDown={() => p.onSeleccion({ fila: pers.nombre, col: h })}
-                    onDoubleClick={p.onEditar}
-                    onContextMenu={e => { e.preventDefault(); p.onSeleccion({ fila: pers.nombre, col: h }); p.onAusencia(pers.nombre, dia) }}
-                    onMouseEnter={(cambio || editada) && dentro ? e => p.onNota(e, pers.nombre, dia) : undefined}
-                    onMouseLeave={(cambio || editada) && dentro ? p.onSinNota : undefined}
-                  >
-                    {aus && h === t![0] ? '×' : ''}
-                    {nuevo && <span className={`hormigas ${h === cambio!.despues[0] ? 'ini' : ''} ${h === cambio!.despues[1] - 1 ? 'fin' : ''}`} />}
+                  <td key={d} className={cls.join(' ')} tabIndex={-1} data-celda={k}
+                    onMouseDown={() => p.onSeleccion(s)}
+                    onDoubleClick={e => p.onEditar(s, e)}
+                    onContextMenu={e => { e.preventDefault(); p.onSeleccion(s); p.onMenu(s, e) }}>
+                    <div className={`texto ${t ? '' : 'libre'}`}>{t ? fmt(t) : 'libre'}{aus ? ' · ausente' : ''}</div>
+                    <div className="linea24" aria-hidden>
+                      {tramos(horasDelDia(hoja, estado, pers.nombre, d)).map(x => (
+                        <i key={x.desde} className={`c-${x.c}`} style={{ left: `${x.desde / 24 * 100}%`, width: `${(x.hasta - x.desde) / 24 * 100}%` }} />
+                      ))}
+                    </div>
                   </td>
                 )
               })}
-              <td className="total">{horas(t) || ''}</td>
+              <td className="total">{total} h</td>
             </tr>
           )
         })}
-        <tr className="hueco"><th className="num">{hoja.plantilla.length + 2}</th><td colSpan={27} /></tr>
-        {(['faltan', 'hay'] as const).map((fila, j) => (
-          <tr key={fila} className="cobertura" style={{ ['--i' as string]: hoja.plantilla.length + 2 + j }}>
-            <th className={`num ${filaSel === fila ? 'sel' : ''}`}>{hoja.plantilla.length + 3 + j}</th>
-            <td className="nombre">{fila === 'faltan' ? 'Hacen falta' : 'Hay'}</td>
-            <td className="contrato" />
-            {HORAS.map(h => {
-              const necesidad = hoja.necesidad[dia][h]
-              const hay = hayA(hoja, cuadrante, ausencias, dia, h)
-              const valor = fila === 'faltan' ? necesidad : hay
-              const formato = fila === 'hay' && necesidad ? (hay < necesidad ? 'corto' : 'justo') : ''
-              return (
-                <td key={h} className={`hora ${abierta(h) ? '' : 'cerrado'} ${formato} ${sel(fila, h) ? 'activa' : ''}`}
-                  onMouseDown={() => p.onSeleccion({ fila, col: h })}>
-                  {valor || ''}
-                </td>
-              )
-            })}
-            <td className="total" />
-          </tr>
-        ))}
+        <tr className="cobertura">
+          <th className="persona">Cobertura</th>
+          {semana.map(d => {
+            const falta = Array.from({ length: 24 }, (_, h) => Math.max(0, hoja.necesidad[d][h] - hayA(hoja, estado, d, h))).reduce((a, b) => a + b, 0)
+            return <td key={d} className={falta ? 'corto' : ''}>{falta ? `faltan ${falta} h` : 'cubierta'}</td>
+          })}
+          <td />
+        </tr>
       </tbody>
     </table>
   )
 }
 
-export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
-  const { hoja, cuadrante, ausencias, cambios, seleccion } = p
-  const dias = 'LMXJVSD'
+export function VistaDia({ dia, ...p }: Props & { dia: number }) {
+  const { hoja, estado } = p
   return (
     <table className="rejilla">
       <thead>
         <tr>
-          <th className="num" />
-          {LETRAS.slice(0, semana.length + 3).map(l => <th key={l}>{l}</th>)}
+          <th className="persona">Persona</th>
+          {Array.from({ length: 24 }, (_, h) => <th key={h} className="hora">{h}</th>)}
+          <th className="total">Día</th>
         </tr>
       </thead>
       <tbody>
-        <tr className="etiqueta">
-          <th className="num">1</th>
-          <td className="nombre">Persona</td>
-          <td className="contrato">h/sem</td>
-          {semana.map(d => {
-            const f = new Date(hoja.fechas[d])
-            return <td key={d} className="dia">{dias[(f.getDay() + 6) % 7]} {f.getDate()}</td>
-          })}
-          <td className="total">Semana</td>
-        </tr>
-        {hoja.plantilla.map((pers, i) => {
-          const total = semana.reduce((s, d) => s + horas(cuadrante[pers.nombre][d]), 0)
+        {hoja.plantilla.map(pers => {
+          const t = estado.cuadrante[pers.nombre][dia]
+          const s = { persona: pers.nombre, dia }
+          const sel = p.seleccion?.persona === pers.nombre && p.seleccion.dia === dia
+          const res = p.resaltar.has(clave(pers.nombre, dia))
+          const hs = horasDelDia(hoja, estado, pers.nombre, dia)
           return (
-            <tr key={pers.nombre} style={{ ['--i' as string]: i + 1 }}>
-              <th className={`num ${seleccion?.fila === pers.nombre ? 'sel' : ''}`}>{i + 2}</th>
-              <td className="nombre">{pers.nombre}</td>
-              <td className="contrato">{pers.contrato}</td>
-              {semana.map(d => {
-                const t = cuadrante[pers.nombre][d]
-                const cambio = cambios.find(c => c.persona === pers.nombre && c.dia === d)
-                const editada = p.editadas.has(clave(pers.nombre, d))
-                const aus = t && ausente(ausencias, pers.nombre, hoja.fechas[d], t[0])
-                const clases = ['dia']
-                if (t) clases.push(aus ? 'aus' : cambio ? 'nuevo' : franja(t))
-                if (cambio || editada) clases.push('comentado')
-                if (seleccion?.fila === pers.nombre && seleccion.col === d) clases.push('activa')
-                return (
-                  <td key={d} className={clases.join(' ')}
-                    onMouseDown={() => p.onSeleccion({ fila: pers.nombre, col: d })}
-                    onDoubleClick={p.onEditar}
-                    onContextMenu={e => { e.preventDefault(); p.onSeleccion({ fila: pers.nombre, col: d }); p.onAusencia(pers.nombre, d) }}
-                    onMouseEnter={cambio || editada ? e => p.onNota(e, pers.nombre, d) : undefined}
-                    onMouseLeave={cambio || editada ? p.onSinNota : undefined}>
-                    {t ? fmt(t) : ''}
-                    {cambio && <span className="hormigas ini fin" />}
-                  </td>
-                )
-              })}
-              <td className="total">{total}</td>
+            <tr key={pers.nombre}>
+              <Persona nombre={pers.nombre} contrato={pers.contrato} sub={t ? fmt(t) : 'libre'} celda={clave(pers.nombre, dia)} />
+              <td colSpan={24} className={`pista ${sel ? 'sel' : ''}`}
+                style={{ ['--abre' as string]: hoja.apertura.desde, ['--cierra' as string]: hoja.apertura.hasta }}
+                onMouseDown={() => p.onSeleccion(s)}
+                onDoubleClick={e => p.onEditar(s, e)}
+                onContextMenu={e => { e.preventDefault(); p.onSeleccion(s); p.onMenu(s, e) }}>
+                {tramos(hs).map(x => (
+                  <i key={x.desde} className={`c-${x.c}`} style={{ left: `${x.desde / 24 * 100}%`, width: `${(x.hasta - x.desde) / 24 * 100}%` }} />
+                ))}
+                {res && hs.length > 0 && (
+                  <b className="marco" style={{ left: `${hs[0].h / 24 * 100}%`, width: `${(hs[hs.length - 1].h + 1 - hs[0].h) / 24 * 100}%` }} />
+                )}
+              </td>
+              <td className="total">{horas(t) || ''}</td>
             </tr>
           )
         })}
+        <tr className="cobertura">
+          <th className="persona">Hay / hacen falta</th>
+          {Array.from({ length: 24 }, (_, h) => {
+            const nec = hoja.necesidad[dia][h]
+            const hay = hayA(hoja, estado, dia, h)
+            return <td key={h} className={`hora ${nec && hay < nec ? 'corto' : ''}`}>{nec ? `${hay}/${nec}` : ''}</td>
+          })}
+          <td />
+        </tr>
       </tbody>
     </table>
   )

@@ -21,17 +21,21 @@ npm run dev
 
 La web queda en `http://localhost:5173` y pasa `/api` al motor en el puerto 8000. Con `?convenio=BOE-A-2023-13741` se abre directamente un convenio sin pasar por el diálogo de entrada.
 
+El asistente usa qwen3:4b por [Ollama](https://ollama.com) (`ollama pull qwen3:4b`). Sin Ollama, todo lo demás funciona a mano.
+
 Los cuadrantes de partida están guardados en `demo/cuadrantes/`. Si cambian la ficha de empresa o las reglas, se borran y el motor los regenera al pedirlos (hasta 60 s por convenio).
 
 ## Qué se puede hacer en la hoja
 
-- **Ver el mes** por día (rejilla de 0 a 24 h) o por semana, con la cobertura de cada hora debajo.
-- **Marcar una ausencia** con clic derecho sobre un turno. El motor propone quién la cubre según el preaviso que haya y explica, persona por persona, qué puede hacer y por qué no lo demás.
-- **Editar un turno a mano** escribiendo en la barra de fórmulas (`7-15`, `22-6` para una noche, vacío para librar). Si la edición rompe una regla, depende de lo que el convenio deje pactar:
+- **Ver el mes** por semana (cada celda dibuja el día de 0 a 24 h) o por día, con la cobertura debajo. El color es la clase de la hora: normal, nocturna, complementaria, extraordinaria, redistribución o ausencia.
+- **Cambiar un turno** con doble clic o escribiendo sobre la celda (`7-15`, `tarde`, `22-6` para una noche, `libre`). Si rompe una regla, depende de lo que el convenio deje pactar:
   - si no se puede pactar, o es un mínimo del Estatuto, se bloquea con la cita;
   - si se puede pactar con la persona, se pide su acuerdo y queda registrado;
   - si solo se puede pactar con la representación, se bloquea mientras no haya un acuerdo colectivo;
   - un hueco de cobertura o una semana fuera de margen se avisa y se aplica, porque es política de la empresa y no ley.
+- **Marcar una ausencia** con clic derecho. El solver la cubre moviendo lo mínimo, según el preaviso que haya, y cada hora añadida dice de qué clase es y de qué artículo sale.
+- **Pedírselo al asistente** del panel derecho, con faltas incluidas: «carmen esta de baja asta el jueves», «pon a Marta de tarde el miércoles 11», «¿quién trabaja el sábado?». Hace lo mismo que la mano y por la misma vía, así que las reglas se aplican igual. Lo que no es del cuadrante no lo contesta.
+- **Deshacer** cualquier cambio, hecho a mano o por el asistente (Ctrl+Z).
 
 ## Implantar un convenio nuevo
 

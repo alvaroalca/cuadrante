@@ -1,0 +1,489 @@
+[
+ {
+  "tipo": "detallada",
+  "texto": "Carmen está de baja desde hoy hasta el jueves",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Carmen",
+     "hasta_dia": "jueves"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Pon a Marta de tarde el jueves",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Marta",
+     "dia": "jueves",
+     "turno": "tarde"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Luis tiene médico mañana de 9 a 11",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Luis",
+     "dia": "mañana",
+     "horas": "9"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Deja libre a Sergio el sábado",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Sergio",
+     "dia": "sábado",
+     "turno": "libre"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Cambia el turno de Elena con el de Nuria el viernes",
+  "espera": [
+   {
+    "tool": "intercambiar_turnos",
+    "args": {
+     "persona": [
+      "Elena",
+      "Nuria"
+     ],
+     "dia": "viernes"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Nuria se va de vacaciones del 16 al 20",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Nuria",
+     "dia": "16",
+     "hasta_dia": "20",
+     "motivo": "vacaciones"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Ponle a Diego de 9 a 17 el miércoles",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Diego",
+     "dia": "miércoles",
+     "turno": "9"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Cambia al convenio de contact center",
+  "espera": [
+   {
+    "tool": "cambiar_convenio",
+    "args": {
+     "convenio": "contact center"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "Llévame a la semana del 23",
+  "espera": [
+   {
+    "tool": "ir_a",
+    "args": {
+     "dia": "23"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "detallada",
+  "texto": "pon a Marta de mañana el jueves y a Luis de tarde",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Marta",
+     "dia": "jueves",
+     "turno": "mañana"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Quién trabaja el sábado?",
+  "espera": [
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "dia": "sábado"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Qué turno tiene Pablo el viernes?",
+  "espera": [
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "persona": "Pablo"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Cuántas horas lleva Elena este mes?",
+  "espera": [
+   {
+    "tool": "ver_horas",
+    "args": {
+     "persona": "Elena"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Hay algún problema con el cuadrante?",
+  "espera": [
+   {
+    "tool": "ver_incumplimientos",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Cuántas horas tienen que pasar entre un turno y otro?",
+  "espera": [
+   {
+    "tool": "explicar_regla",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Puedo hacer que alguien haga horas extra?",
+  "espera": [
+   {
+    "tool": "explicar_regla",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "consulta",
+  "texto": "¿Cuánto descanso semanal les toca?",
+  "espera": [
+   {
+    "tool": "explicar_regla",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "deshacer",
+  "texto": "No me gusta, descártalo",
+  "espera": [
+   {
+    "tool": "deshacer",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "deshacer",
+  "texto": "Deshaz lo último",
+  "espera": [
+   {
+    "tool": "deshacer",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "deshacer",
+  "texto": "Me he equivocado, vuelve atrás",
+  "espera": [
+   {
+    "tool": "deshacer",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "carmen esta de vaja asta el juebes",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Carmen",
+     "hasta_dia": [
+      "jueves",
+      "juebes"
+     ],
+     "motivo": "baja"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "pon a marat de tarde el jueves",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Marta",
+     "turno": "tarde"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "kien trabaja el sabado",
+  "espera": [
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "dia": "sabado"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "oscar tiene q ir al medico mñn por la mñn",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "scar"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "kuantas oras yeva elena",
+  "espera": [
+   {
+    "tool": "ver_horas",
+    "args": {
+     "persona": "Elena"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "faltas",
+  "texto": "dejale livre a raul el domingo",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Ra",
+     "dia": "domingo",
+     "turno": "libre"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "Carmen no viene",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Carmen"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "Sara está mala",
+  "espera": [
+   {
+    "tool": "marcar_ausencia",
+    "args": {
+     "persona": "Sara",
+     "motivo": "baja"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "El jueves vamos cortos de gente por la tarde",
+  "espera": [
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "dia": "jueves"
+    }
+   },
+   {
+    "tool": "ver_incumplimientos",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "¿Cómo va la semana?",
+  "espera": [
+   {
+    "tool": "ver_incumplimientos",
+    "args": {}
+   },
+   {
+    "tool": "ver_cuadrante",
+    "args": {}
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "Dale el finde libre a Irene",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Irene",
+     "turno": "libre"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "vaga",
+  "texto": "Que Javier entre más tarde el martes",
+  "espera": [
+   {
+    "tool": "cambiar_turno",
+    "args": {
+     "persona": "Javier",
+     "dia": "martes"
+    }
+   },
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "persona": "Javier"
+    }
+   },
+   "pregunta"
+  ]
+ },
+ {
+  "tipo": "pregunta",
+  "texto": "Pon a alguien de tarde el jueves",
+  "espera": [
+   "pregunta",
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "dia": "jueves"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "pregunta",
+  "texto": "Está de baja hasta el viernes",
+  "espera": [
+   "pregunta"
+  ]
+ },
+ {
+  "tipo": "pregunta",
+  "texto": "Cambia el turno de Luis",
+  "espera": [
+   "pregunta",
+   {
+    "tool": "ver_cuadrante",
+    "args": {
+     "persona": "Luis"
+    }
+   }
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "¿Qué tiempo hace mañana?",
+  "espera": [
+   "rechazo"
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "Escríbeme un poema sobre los lunes",
+  "espera": [
+   "rechazo"
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "¿Quién ganó el mundial de 2010?",
+  "espera": [
+   "rechazo"
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "Hazme un script en Python que ordene una lista",
+  "espera": [
+   "rechazo"
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "Dime una receta de tortilla para la cena del equipo",
+  "espera": [
+   "rechazo"
+  ]
+ },
+ {
+  "tipo": "fuera",
+  "texto": "Recomiéndame una serie para el finde",
+  "espera": [
+   "rechazo"
+  ]
+ }
+]

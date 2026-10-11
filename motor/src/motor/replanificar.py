@@ -38,7 +38,7 @@ class Cambio:
     dia: int
     antes: tuple[int, int] | None
     despues: tuple[int, int]
-    horas: dict[str, int]  # clase -> horas añadidas
+    horas: dict[str, int]  # clase -> horas añadidas en esta celda, en el orden en que se pintan
 
 
 @dataclass
@@ -178,10 +178,16 @@ def replanificar(ctx: Contexto, base: Cuadrante, ausencias: list[Ausencia], segu
     nuevo = mod.cuadrante(solver)
     cambios = []
     for p in P:
-        clases = {c: solver.value(horas_clase[p.nombre, c]) for c in CLASES}
+        # Las horas de cada clase son del periodo; se reparten entre las celdas que crecen, de la más barata a la más cara.
+        bolsa = [[c, solver.value(horas_clase[p.nombre, c])] for c in CLASES]
         for d in dias:
             if nuevo[p.nombre][d] != base[p.nombre][d]:
-                cambios.append(Cambio(p.nombre, d, base[p.nombre][d], nuevo[p.nombre][d], {c: h for c, h in clases.items() if h}))
+                falta, celda = horas(nuevo[p.nombre][d]) - horas(base[p.nombre][d] or (0, 0)), {}
+                for b in bolsa:
+                    h = min(falta, b[1])
+                    if h:
+                        celda[b[0]] = h; b[1] -= h; falta -= h
+                cambios.append(Cambio(p.nombre, d, base[p.nombre][d], nuevo[p.nombre][d], celda))
     sin_cubrir = [(d, h, solver.value(f)) for (d, h), f in faltas if solver.value(f)]
     pagadas = {p.nombre: sum(solver.value(horas_clase[p.nombre, c]) for c in ("voluntarias", "pactadas", "extras")) for p in P}
     return Replan(st, nuevo, cambios, sin_cubrir, {n: list(o.values()) for n, o in ops.items()}, comprobar(ctx, nuevo, pagadas))
