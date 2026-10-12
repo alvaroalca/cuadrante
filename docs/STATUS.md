@@ -83,5 +83,4 @@
 
 ## Siguiente
 
-1. Lo pendiente de arriba.
-2. Reel y ficha del portfolio.
+Cerrado con la ficha y el reel publicados. No se mantiene.
