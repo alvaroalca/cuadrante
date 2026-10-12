@@ -76,10 +76,9 @@
 
 - Celda trabajada con tinte de su clase de hora y fin de semana libre en gris más oscuro (Álvaro).
 - Arreglos al grabar el reel: «hasta el jueves» sin día de inicio se leía como solo el jueves (ahora `dia` es «hoy»; el banco no lo cazaba porque solo mira `hasta_dia`); el Intro que cerraba el editor de celda lo reabría vacío por el atajo global de la hoja. El autoreload de uvicorn en Windows no siempre recoge los cambios: tras tocar el motor, reiniciarlo.
-- **Reel** en `C:\Mis Proyectos\promo-videos\cuadrante` (22,2 s, 793 KB): apertura, la baja con faltas en el chat, la misma baja bajo los tres convenios (contact center deja 1 h sin cubrir), el acuerdo de Marta (art. 23) y cierre. Cifras estampadas desde `footage/marks.json` y el repo. **Ficha** `/projects/cuadrante/` en «01 · Software a medida» de la web, rama `dev` sin commit.
+- **Reel** (22,2 s, 793 KB, en el repo de vídeos del portfolio): apertura, la baja con faltas en el chat, la misma baja bajo los tres convenios (contact center deja 1 h sin cubrir), el acuerdo de Marta (art. 23) y cierre. Cifras estampadas desde `footage/marks.json` y el repo. **Ficha** en alvaroalcaraz.com/projects/cuadrante/, en «01 · Software a medida».
 
-**Pendiente:**
-1. Commit y push de la web; repo público y enlace a GitHub en la ficha.
+**Pendiente:** nada abierto. Repo público en github.com/alvaroalca/cuadrante.
 2. Guion del reel: elegir las frases que se graban (la baja de Marta el jueves no mueve a nadie en contact center; la de Luis el martes 10 en dependencia sí reparte horas).
 
 ## Siguiente
