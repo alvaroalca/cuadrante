@@ -45,7 +45,7 @@ export function Chat({ items, pensando, onEnviar, onCerrar }: {
   return (
     <aside className="chat">
       <header>
-        Asistente <span className="apagado">qwen3:4b en local</span>
+        Asistente <span className="apagado">qwen3.5:4b en local</span>
         <button className="boton" style={{ marginLeft: 'auto', padding: '2px 8px' }} onClick={onCerrar} aria-label="Cerrar el asistente">×</button>
       </header>
       <div className="hilo" ref={hilo}>

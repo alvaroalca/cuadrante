@@ -72,13 +72,19 @@ interface Props {
 }
 
 function Persona({ nombre, contrato, sub, celda }: { nombre: string; contrato: number; sub?: string; celda?: string }) {
-  return <th className="persona" data-celda={celda}><b>{nombre}</b><small>{contrato} h/sem{sub ? ` · ${sub}` : ''}</small></th>
+  return <th className="persona" data-celda={celda}><b>{nombre}</b> <small>{contrato} h{sub ? ` · ${sub}` : ''}</small></th>
+}
+
+/** Personas que faltan a cada hora del día d (0 si sobra o no hace falta nadie). */
+function faltan(hoja: DatosHoja, e: Estado, d: number) {
+  return Array.from({ length: 24 }, (_, h) => Math.max(0, hoja.necesidad[d][h] - hayA(hoja, e, d, h)))
 }
 
 export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
   const { hoja, estado } = p
+  const finde = (d: number) => diaSemana(hoja.fechas[d]) >= 5
   return (
-    <table className="rejilla">
+    <table className="rejilla semana">
       <thead>
         <tr>
           <th className="persona">Persona</th>
@@ -88,6 +94,23 @@ export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
             return <th key={d} className={`${d === p.hoy ? 'hoy' : ''} ${ds >= 5 ? 'finde' : ''}`}>{NOMBRE_DIA[ds]} {f.getDate()}{d === p.hoy ? ' · hoy' : ''}</th>
           })}
           <th className="total">Semana</th>
+        </tr>
+        {/* Cobertura arriba y fija: siempre a la vista, en gris mientras está cubierta. */}
+        <tr className="cobertura">
+          <th className="persona">Cobertura</th>
+          {semana.map(d => {
+            const fs = faltan(hoja, estado, d)
+            const total = fs.reduce((a, b) => a + b, 0)
+            return (
+              <th key={d} className={total ? 'corto' : ''} title={total ? `Faltan ${total} h-persona` : 'Todas las horas cubiertas'}>
+                <div className="franja24" aria-hidden>
+                  {fs.map((f, h) => <i key={h} className={f ? 'falta' : hoja.necesidad[d][h] ? 'ok' : ''} />)}
+                </div>
+                <span>{total ? `faltan ${total} h` : 'cubierta'}</span>
+              </th>
+            )
+          })}
+          <th />
         </tr>
       </thead>
       <tbody>
@@ -100,22 +123,27 @@ export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
                 const t = estado.cuadrante[pers.nombre][d]
                 const s = { persona: pers.nombre, dia: d }
                 const k = clave(pers.nombre, d)
-                const aus = t && ausente(estado, pers.nombre, hoja.fechas[d], t[0])
+                const hs = horasDelDia(hoja, estado, pers.nombre, d)
+                const aus = hs.some(x => x.c === 'ausencia')
                 const cls = ['celda']
+                if (finde(d)) cls.push('finde')
+                // El día trabajado lleva un tinte de la clase que más horas tiene; el libre, en blanco.
+                if (hs.length) cls.push(`t-${LEYENDA.map(([c]) => c).reduce((a, c) => hs.filter(x => x.c === c).length > hs.filter(x => x.c === a).length ? c : a)}`)
                 if (p.seleccion?.persona === pers.nombre && p.seleccion.dia === d) cls.push('sel')
                 if (p.resaltar.has(k)) cls.push('resaltada')
                 if (p.pactadas.has(k)) cls.push('pactada')
                 return (
-                  <td key={d} className={cls.join(' ')} tabIndex={-1} data-celda={k}
+                  <td key={d} className={cls.join(' ')} tabIndex={-1} data-celda={k} title={aus ? 'Ausente' : undefined}
                     onMouseDown={() => p.onSeleccion(s)}
                     onDoubleClick={e => p.onEditar(s, e)}
                     onContextMenu={e => { e.preventDefault(); p.onSeleccion(s); p.onMenu(s, e) }}>
-                    <div className={`texto ${t ? '' : 'libre'}`}>{t ? fmt(t) : 'libre'}{aus ? ' · ausente' : ''}</div>
-                    <div className="linea24" aria-hidden>
-                      {tramos(horasDelDia(hoja, estado, pers.nombre, d)).map(x => (
-                        <i key={x.desde} className={`c-${x.c}`} style={{ left: `${x.desde / 24 * 100}%`, width: `${(x.hasta - x.desde) / 24 * 100}%` }} />
-                      ))}
-                    </div>
+                    {/* Las clases de sus horas, en orden, como una barra vertical. */}
+                    {hs.length > 0 && (
+                      <span className="clases" aria-hidden>
+                        {tramos(hs).map(x => <i key={x.desde} className={`c-${x.c}`} style={{ flexGrow: x.hasta - x.desde }} />)}
+                      </span>
+                    )}
+                    {t && <span className={`texto ${aus ? 'ausente' : ''}`}>{fmt(t)}</span>}
                   </td>
                 )
               })}
@@ -123,14 +151,6 @@ export function VistaSemana({ semana, ...p }: Props & { semana: number[] }) {
             </tr>
           )
         })}
-        <tr className="cobertura">
-          <th className="persona">Cobertura</th>
-          {semana.map(d => {
-            const falta = Array.from({ length: 24 }, (_, h) => Math.max(0, hoja.necesidad[d][h] - hayA(hoja, estado, d, h))).reduce((a, b) => a + b, 0)
-            return <td key={d} className={falta ? 'corto' : ''}>{falta ? `faltan ${falta} h` : 'cubierta'}</td>
-          })}
-          <td />
-        </tr>
       </tbody>
     </table>
   )
@@ -145,6 +165,15 @@ export function VistaDia({ dia, ...p }: Props & { dia: number }) {
           <th className="persona">Persona</th>
           {Array.from({ length: 24 }, (_, h) => <th key={h} className="hora">{h}</th>)}
           <th className="total">Día</th>
+        </tr>
+        <tr className="cobertura">
+          <th className="persona">Hay / hacen falta</th>
+          {Array.from({ length: 24 }, (_, h) => {
+            const nec = hoja.necesidad[dia][h]
+            const hay = hayA(hoja, estado, dia, h)
+            return <th key={h} className={`hora ${nec && hay < nec ? 'corto' : ''}`}>{nec ? `${hay}/${nec}` : ''}</th>
+          })}
+          <th />
         </tr>
       </thead>
       <tbody>
@@ -173,15 +202,6 @@ export function VistaDia({ dia, ...p }: Props & { dia: number }) {
             </tr>
           )
         })}
-        <tr className="cobertura">
-          <th className="persona">Hay / hacen falta</th>
-          {Array.from({ length: 24 }, (_, h) => {
-            const nec = hoja.necesidad[dia][h]
-            const hay = hayA(hoja, estado, dia, h)
-            return <td key={h} className={`hora ${nec && hay < nec ? 'corto' : ''}`}>{nec ? `${hay}/${nec}` : ''}</td>
-          })}
-          <td />
-        </tr>
       </tbody>
     </table>
   )

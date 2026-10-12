@@ -21,7 +21,7 @@ npm run dev
 
 La web queda en `http://localhost:5173` y pasa `/api` al motor en el puerto 8000. Con `?convenio=BOE-A-2023-13741` se abre directamente un convenio sin pasar por el diálogo de entrada.
 
-El asistente usa qwen3:4b por [Ollama](https://ollama.com) (`ollama pull qwen3:4b`). Sin Ollama, todo lo demás funciona a mano.
+El asistente usa qwen3.5:4b por [Ollama](https://ollama.com) (`ollama pull qwen3.5:4b`). Sin Ollama, todo lo demás funciona a mano.
 
 Los cuadrantes de partida están guardados en `demo/cuadrantes/`. Si cambian la ficha de empresa o las reglas, se borran y el motor los regenera al pedirlos (hasta 60 s por convenio).
 

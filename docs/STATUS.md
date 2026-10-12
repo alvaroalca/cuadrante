@@ -61,10 +61,22 @@
 - **Estilo nuevo**: fuera Office XP. Señalética del metro de Nueva York; color por clase de hora (ver CLAUDE.md). Vista de semana con el día de 0 a 24 h en pequeño en cada celda; vista de día con una pista por persona. El panel lateral de reglas pasa a un cajón (Incumplimientos, Convenio, Acuerdos). Edición: doble clic o escribir sobre la celda (`7-15`, `tarde`, `libre`), Supr libra, Ctrl+Z deshace, clic derecho para ausencia. «Hoy es» se elige en la barra.
 - Probado con Edge headless: edición, ausencia a mano, vista de día, y el asistente en dependencia y en contact center (baja con faltas, acuerdo, regla, deshacer). Sin errores de consola.
 
-**Pendiente, por orden:**
-1. **Latencia del asistente**: 10-25 s por llamada. qwen3:4b razona en inglés dentro del texto (unos 1.800 tokens) aunque se le pida `think: false`; con herramientas Ollama no lo respeta. Probar a actualizar Ollama, o separar en dos llamadas (elegir herramienta con salida JSON de esquema cerrado, que con las frases tardaba 4 s).
-2. `explicar_regla` busca por palabras y falla («horas entre turnos» no encuentra el ET 34.3): que el modelo elija el tipo de regla de un enum.
-3. Smoke test de Álvaro de la web nueva.
+## 12/10/2026: latencia del asistente
+
+- Ollama 0.23 → 0.40.3. qwen3:4b sigue razonando en inglés dentro del texto (600-3.400 tokens) con `think: false` y con `/no_think`: no es Ollama, es el modelo.
+- Una llamada con salida JSON de esquema cerrado en vez de herramientas: 3,4 s pero 24/41 (sin razonar confunde ausencia con cambio de turno y pregunta de más). Descartado.
+- **qwen3.5:4b** respeta `think: false`: con el enum de `explicar_regla`, 38/41 en 3,5 s de mediana y 4,4 s de máxima (qwen3:4b, 39/41 en 13,2 s y 53,9 s). Pasa a ser el modelo por defecto. Fallos: «¿cómo va la semana?» va a hoy, «está de baja hasta el viernes» sin decir quién se inventa a Sara en vez de preguntar (se deshace), y «marat», que el banco cuenta como fallo pero el código ya resuelve a Marta. gemma4:e4b pregunta en vez de actuar.
+- Decisión de Álvaro: el LLM es intercambiable y no se afina más; para el reel basta con un guion de ejemplos que funcionen.
+- `explicar_regla`: el modelo elige el tipo de regla de un enum (el de `TipoRegla`) en vez de buscar por palabras. «horas entre turnos» → ET 34.3, «días seguidos» → art. 23, «de noche» → ET 36.1, «antelación» → art. 26.
+- Guion probado en contact center, 3-4 s por frase: baja de Marta, deshacer, «pon a marat de tarde el miércoles 11» → pide acuerdo (art. 23) → «sí» lo aplica y registra, regla de descanso entre turnos, horas de Elena, «¿qué tiempo hace mañana?» → se niega.
+
+- Smoke test de Álvaro, primera ronda. Fallos arreglados: el botón «X está de acuerdo» volvía a abrir el diálogo (tras aplicar, el resultado seguía con nivel `acuerdo`); la guarda del asistente rechazaba «el miércoles 11» pasado como «el 11» (ahora vale si el día pasado cae en el día de la semana dicho); el aviso de la web solo enseñaba la primera línea y una ausencia sin nada que cubrir parecía no hacer nada.
+- No eran fallos: Paula cubre la baja de Luis entera con 8 días de aviso porque se puede redistribuir (ET 34.2); una hora de Luis el viernes 13 por la tarde no se cubre porque hay 5 personas para 4 de cobertura.
+- UI (decisiones de Álvaro): «Hoy es» fuera de la barra, la demo vive el lunes 9/11 (`HOY` en `App.tsx`) y el aviso de cada ausencia se elige en su diálogo. Semanas con número ISO («Semana 46 · 9–15 nov»), botones de día con número, y título del día o la semana que se está tocando encima de la rejilla. Semana en rejilla densa (filas de 30 px, la celda solo con el turno y una barra vertical con la clase de sus horas, libre en blanco, fin de semana sombreado). Cobertura como segunda fila de la cabecera, fija al hacer scroll: gris mientras está cubierta, roja donde falta (tira de 24 h por día en la semana, hay/hacen falta por hora en el día).
+
+**Pendiente:**
+1. Segunda ronda del smoke test de Álvaro.
+2. Guion del reel: elegir las frases que se graban (la baja de Marta el jueves no mueve a nadie en contact center; la de Luis el martes 10 en dependencia sí reparte horas).
 
 ## Siguiente
 

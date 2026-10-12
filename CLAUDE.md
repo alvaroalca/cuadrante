@@ -9,7 +9,7 @@ Pieza de portfolio de software a medida: se hace, se graba el reel y queda el re
 - `motor/`: Python 3.13 con uv. OR-Tools CP-SAT (solver) + FastAPI. CP-SAT no tiene binding oficial para Node, por eso el backend es Python.
 - `web/`: React + Vite + TS.
 - Sin base de datos: reglas, plantilla demo y cuadrantes son JSON.
-- LLM en la app: qwen3:4b por Ollama, como asistente del panel lateral con poder sobre todo el programa (decisiones del 11/10/2026).
+- LLM en la app: qwen3.5:4b por Ollama (`MODELO` en `motor/agente.py`), como asistente del panel lateral con poder sobre todo el programa (decisiones del 11/10/2026). El modelo es intercambiable: para la demo basta con que el guion del reel funcione, no se afina más (Álvaro, 12/10/2026).
 - Arrancar: `cd motor && uv run uvicorn motor.api:app --reload` y `cd web && npm run dev` (proxy `/api` a :8000). Los cuadrantes de partida se cachean en `demo/cuadrantes/`; si cambian la ficha o las reglas, se borran y se regeneran (hasta 60 s por convenio).
 
 ## Decisiones cerradas (09/10/2026)
@@ -32,7 +32,7 @@ Pieza de portfolio de software a medida: se hace, se graba el reel y queda el re
 
 - **Asistente con poder sobre el programa** (Álvaro): como el panel de IA de VS Code. Se puede trabajar a mano sin él o solo con él. Instrucciones detalladas o vagas y con faltas de ortografía; lo que no es del programa (el tiempo, recetas...) no lo contesta. Sus herramientas son las acciones de `motor/acciones.py`, y la web hace lo de la mano por esas mismas acciones (`/api/accion`): una sola vía.
 - **Actúa y se deshace** (Álvaro): cada acción se aplica al momento con historial para deshacer. Una ausencia replanifica y aplica. Lo que necesita acuerdo individual solo se aplica si el usuario confirma que la persona está de acuerdo; un bloqueo, nunca.
-- **Modelo medido, no supuesto**: banco `demo/instrucciones.json` (`uv run python -m motor.agente`). qwen3:4b sin razonar 41/43; qwen3:8b 36/43 (inventa personas en vez de preguntar). Si qwen3:4b razona en el texto en vez de llamar a una herramienta, esa vuelta se repite con razonamiento.
+- **Modelo medido, no supuesto**: banco `demo/instrucciones.json` (`uv run python -m motor.agente`). qwen3:4b 39/41 pero 13 s de mediana (razona en inglés dentro del texto aunque se le pida `think: false`, también con Ollama 0.40 y `/no_think`); qwen3.5:4b 38/41 en 3,5 s (máxima 4,4 s), elegido por la latencia; qwen3:8b inventa personas. Si el modelo razona en el texto en vez de llamar a una herramienta, esa vuelta se repite con razonamiento.
 - **Estilo**: señalética del metro de Nueva York (banda negra, letra blanca, Archivo). El color lo pone la clase de la hora, no el turno: normal azul A/C/E, nocturna (22-6) morado 7, complementaria verde 4/5/6, extraordinaria naranja B/D/F, redistribución amarillo N/Q/R, ausencia rojo 1/2/3. Lo último que cambió va con contorno discontinuo.
 
 ## Gotchas

@@ -11,10 +11,21 @@ import type { Seleccion } from './Hoja'
 import { Cajon } from './Cajon'
 import type { Pestana } from './Cajon'
 
+// La demo vive en este día: decide el aviso por defecto de una ausencia y desde dónde entiende el
+// asistente "mañana" o "el jueves". El aviso de cada ausencia se puede cambiar en su diálogo.
+const HOY = '2026-11-09'
+
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 interface Pendiente { nivel: 'bloqueo' | 'acuerdo'; que: string; persona: string; incidencias: Incumplimiento[]; nombre: string; args: Record<string, unknown> }
 interface Aviso { texto: string; detalle?: string; deshacer?: boolean }
+
+/** Número de semana ISO 8601, el de los calendarios: el 9/11/2026 cae en la 46. */
+function semanaISO(f: Date) {
+  const d = new Date(Date.UTC(f.getFullYear(), f.getMonth(), f.getDate()))
+  d.setUTCDate(d.getUTCDate() + 3 - (d.getUTCDay() + 6) % 7) // el jueves de esa semana
+  return 1 + Math.floor((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5 / 7)
+}
 
 export default function App() {
   const [convenios, setConvenios] = useState<ConvenioResumen[]>([])
@@ -27,7 +38,6 @@ export default function App() {
   const [historial, setHistorial] = useState<Estado[]>([])
   const [incs, setIncs] = useState<Incumplimiento[]>([])
   const [resaltar, setResaltar] = useState<[string, number][]>([])
-  const [hoy, setHoy] = useState(0)
   const [semana, setSemana] = useState(0)
   const [vista, setVista] = useState<'semana' | number>('semana') // la semana o un día (índice en fechas)
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null)
@@ -55,9 +65,8 @@ export default function App() {
       setConvenio(c); setHoja(h)
       setEstado({ boe, cuadrante: h.cuadrante, ausencias: [], acuerdos: [], clases: {} })
       setHistorial([]); setIncs(h.incumplimientos); setResaltar([])
-      const hoyReal = h.fechas.indexOf(new Date().toISOString().slice(0, 10))
-      setHoy(hoyReal >= 0 ? hoyReal : 0)
-      setSemana(0); setVista('semana'); setSeleccion(null)
+      setSemana(Math.max(0, h.semanas.findIndex(s => s.includes(h.fechas.indexOf(HOY)))))
+      setVista('semana'); setSeleccion(null)
     } catch (e) {
       setError(String(e))
     }
@@ -70,7 +79,8 @@ export default function App() {
     Promise.all([api.convenio(estado.boe), api.hoja(estado.boe)]).then(([c, h]) => { setConvenio(c); setHoja(h) })
   }, [estado, convenio])
 
-  const hoyISO = hoja ? hoja.fechas[hoy] : ''
+  const hoy = hoja ? hoja.fechas.indexOf(HOY) : -1
+  const hoyISO = HOY
   const dias = hoja?.semanas[semana] ?? []
 
   function irA(fecha: string | null | undefined) {
@@ -100,7 +110,11 @@ export default function App() {
       aplicar(r)
       if (nombre === 'deshacer') setAviso({ texto: 'Deshecho.' })
       else if (r.nivel === 'aviso') setAviso({ texto: 'Hecho, con avisos.', detalle: (r.incidencias ?? []).map(i => i.mensaje).slice(0, 3).join(' · '), deshacer: true })
-      else setAviso({ texto: cambio ? r.texto.split('\n')[0] : r.texto, deshacer: cambio })
+      else {
+        // La primera línea dice qué se hizo; las demás, a quién se movió o por qué no hizo falta.
+        const [cabeza, ...resto] = r.texto.split('\n')
+        setAviso({ texto: cabeza, detalle: resto.slice(0, 4).join('\n') || undefined, deshacer: cambio })
+      }
     } catch (e) {
       setAviso({ texto: String(e) })
     } finally {
@@ -191,6 +205,14 @@ export default function App() {
 
   const abiertos = incs.filter(i => !i.pactado).length
   const primero = new Date(hoja.fechas[dias[0]]), ultimo = new Date(hoja.fechas[dias[dias.length - 1]])
+  const mes = (f: Date) => MESES[f.getMonth()]
+  const rango = primero.getMonth() === ultimo.getMonth()
+    ? `${primero.getDate()}–${ultimo.getDate()} ${mes(ultimo).slice(0, 3)}`
+    : `${primero.getDate()} ${mes(primero).slice(0, 3)}–${ultimo.getDate()} ${mes(ultimo).slice(0, 3)}`
+  // Lo que se está viendo y tocando, escrito entero encima de la rejilla.
+  const titulo = vista === 'semana'
+    ? `Semana ${semanaISO(primero)} · ${primero.getDate()}${primero.getMonth() === ultimo.getMonth() ? '' : ` de ${mes(primero)}`} al ${ultimo.getDate()} de ${mes(ultimo)}`
+    : `${NOMBRE_DIA[diaSemana(hoja.fechas[vista])].replace(/^./, c => c.toUpperCase())} ${new Date(hoja.fechas[vista]).getDate()} de ${mes(new Date(hoja.fechas[vista]))}`
   const props = {
     hoja, estado, hoy, seleccion,
     resaltar: new Set(resaltar.map(([p, d]) => clave(p, d))),
@@ -207,14 +229,8 @@ export default function App() {
         <span className="marca">Cuadrante</span>
         <button className="chip" onClick={() => setElegir(true)} title="Cambiar de convenio">{convenio.nombre}</button>
         <div className="grupo">
-          <label htmlFor="hoy">Hoy es</label>
-          <select id="hoy" value={hoy} onChange={e => setHoy(Number(e.target.value))}>
-            {hoja.fechas.map((f, i) => <option key={f} value={i}>{NOMBRE_DIA[diaSemana(f)]} {new Date(f).getDate()}</option>)}
-          </select>
-        </div>
-        <div className="grupo">
           <button className="chip" disabled={semana === 0} onClick={() => moverSemana(semana - 1)} aria-label="Semana anterior">‹</button>
-          <span>{primero.getDate()}–{ultimo.getDate()} de {MESES[ultimo.getMonth()]}</span>
+          <span className="semana">Semana {semanaISO(primero)} <span className="rango">· {rango}</span></span>
           <button className="chip" disabled={semana === hoja.semanas.length - 1} onClick={() => moverSemana(semana + 1)} aria-label="Semana siguiente">›</button>
         </div>
         <div className="grupo">
@@ -222,7 +238,7 @@ export default function App() {
           {dias.map(d => (
             <button key={d} className="chip" aria-pressed={vista === d} onClick={() => setVista(d)}
               title={`${NOMBRE_DIA[diaSemana(hoja.fechas[d])]} ${new Date(hoja.fechas[d]).getDate()}`}>
-              {DIAS[diaSemana(hoja.fechas[d])]}
+              {DIAS[diaSemana(hoja.fechas[d])]} {new Date(hoja.fechas[d]).getDate()}
             </button>
           ))}
         </div>
@@ -235,11 +251,12 @@ export default function App() {
       </div>
 
       <div className="leyenda">
+        <h1 className="titulo">{titulo}{vista !== 'semana' && vista === hoy && <small> · hoy</small>}</h1>
         {LEYENDA.map(([c, n]) => <span key={c}><i className={`c-${c}`} />{n}</span>)}
         <span><i className="libre" />Libre</span>
         <span><span className="marca-resaltado" />Último cambio</span>
-        <span className="apagado" style={{ marginLeft: 'auto' }}>
-          {ocupado ? 'Calculando…' : 'Doble clic o escribe sobre una celda para cambiar el turno · clic derecho para más'}
+        <span className="apagado ayuda">
+          {ocupado ? 'Calculando…' : 'Doble clic o escribe sobre una celda · clic derecho para más'}
         </span>
       </div>
 
@@ -292,7 +309,7 @@ export default function App() {
       {aviso && (
         <div className="aviso-flotante" role="status">
           <span>{aviso.texto}</span>
-          {aviso.detalle && <q>{aviso.detalle}</q>}
+          {aviso.detalle && <span className="detalle">{aviso.detalle}</span>}
           {aviso.deshacer && (
             <div className="acciones">
               <button className="boton" onClick={() => { setAviso(null); accion('deshacer', {}) }}>Deshacer</button>

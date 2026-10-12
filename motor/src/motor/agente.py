@@ -17,10 +17,14 @@ from datetime import date
 
 import httpx
 
-from motor.acciones import DIAS, HISTORIAL, Estado, contexto, ejecutar, normal
+from motor.acciones import DIAS, HISTORIAL, Estado, contexto, ejecutar, fecha_de, normal
 from motor.empresa import RAIZ, Contexto
+from motor.reglas import TipoRegla
 
 OLLAMA = "http://localhost:11434/api/chat"
+# Intercambiable. qwen3:4b acertaba algo más en el banco pero razona en el texto aunque se le pida
+# que no (10-25 s por llamada); qwen3.5:4b respeta think: false y tarda unos 3,5 s.
+MODELO = "qwen3.5:4b"
 
 DIA = {"type": "string", "description": "El día como lo dice el usuario: 'hoy', 'mañana', 'jueves', 'el 12', 'lunes que viene'."}
 PERSONA = {"type": "string", "description": "Nombre de una persona de la plantilla."}
@@ -38,8 +42,8 @@ HERRAMIENTAS = [
     herramienta("ver_horas", "Horas trabajadas, contrato y saldo de horas de una persona.",
                 {"persona": PERSONA}, ["persona"]),
     herramienta("ver_incumplimientos", "Lista lo que incumple el convenio o deja huecos de cobertura en el cuadrante actual.", {}),
-    herramienta("explicar_regla", "Busca en el convenio activo y el Estatuto la regla sobre un tema (descansos, horas extra, nocturnidad, preaviso...) para explicarla con su cita.",
-                {"tema": {"type": "string"}}, ["tema"]),
+    herramienta("explicar_regla", "Explica con su cita lo que dicen el convenio activo y el Estatuto sobre un tipo de regla (descanso entre turnos, días libres, días seguidos, horas por día, nocturnidad, preaviso...).",
+                {"tipo": {"type": "string", "enum": [t.value for t in TipoRegla if t != TipoRegla.OTRA]}}, ["tipo"]),
     herramienta("marcar_ausencia", "Marca que una persona falta (baja, médico, vacaciones...) y busca quién la cubre sin saltarse el convenio.",
                 {"persona": PERSONA, "dia": DIA,
                  "hasta_dia": {**DIA, "description": "Último día si son varios: 'hasta el viernes' da 'viernes'."},
@@ -103,7 +107,7 @@ def turno_modelo(mensajes: list[dict], modelo: str) -> dict:
     return m
 
 
-def descuadre(texto: str, llamadas: list[dict]) -> str | None:
+def descuadre(texto: str, llamadas: list[dict], hoy: date) -> str | None:
     """Un número o un día de la semana que el usuario dijo y no llega a las acciones que cambian
     algo. Un modelo pequeño a veces se come "el 11" de "el miércoles 11", y eso, sin esta
     comprobación, se aplicaría a otro miércoles sin avisar."""
@@ -116,14 +120,17 @@ def descuadre(texto: str, llamadas: list[dict]) -> str | None:
         if w.isdigit() and w not in numeros:
             return w
     semana, palabras = [normal(d) for d in DIAS], re.findall(r"\w+", pasado)
+    # Un día de la semana puede no llegar si el que llega cae en él: "el miércoles 11" como "el 11".
+    caen = {normal(DIAS[f.weekday()]) for a in llamadas for k in ("dia", "hasta_dia") if (f := fecha_de(a.get(k), hoy))}
     for w in dicho:
-        if difflib.get_close_matches(w, semana, n=1, cutoff=0.8) and not difflib.get_close_matches(w, palabras, n=1, cutoff=0.8):
+        d = difflib.get_close_matches(w, semana, n=1, cutoff=0.8)
+        if d and d[0] not in caen and not difflib.get_close_matches(w, palabras, n=1, cutoff=0.8):
             return w
     return None
 
 
 def conversar(estado: Estado, historial: list[Estado], mensajes: list[dict], texto: str, hoy: date,
-              modelo: str = "qwen3:4b", pasos: int = 6) -> Iterator[dict]:
+              modelo: str = MODELO, pasos: int = 6) -> Iterator[dict]:
     """Ejecuta lo que pide el usuario. Va soltando eventos: una 'accion' por herramienta y un 'fin'."""
     ctx = contexto(estado.boe)
     mensajes = [*mensajes[-20:], {"role": "user", "content": texto}]
@@ -135,7 +142,7 @@ def conversar(estado: Estado, historial: list[Estado], mensajes: list[dict], tex
             break
         textos = []
         llamadas = [(c["function"]["name"], dict(c["function"].get("arguments") or {})) for c in m["tool_calls"]]
-        falta = descuadre(texto, [a for n, a in llamadas if n in MUTAN])
+        falta = descuadre(texto, [a for n, a in llamadas if n in MUTAN], hoy)
         for nombre, args in llamadas:
             if falta and nombre in MUTAN:
                 # No se ejecuta: el modelo vuelve a intentarlo con lo que dijo el usuario.
@@ -187,7 +194,7 @@ def casa(llamada: dict, esperada: dict) -> bool:
     return True
 
 
-def medir(modelo: str = "qwen3:4b", pensar: bool = False, boe: str = "BOE-A-2023-13740") -> None:
+def medir(modelo: str = MODELO, pensar: bool = False, boe: str = "BOE-A-2023-13740") -> None:
     from motor.empresa import cargar_convenio, cargar_empresa
     ctx = Contexto.crear(cargar_empresa(), cargar_convenio(boe))
     hoy = date(2026, 11, 9)
@@ -220,4 +227,4 @@ def medir(modelo: str = "qwen3:4b", pensar: bool = False, boe: str = "BOE-A-2023
 
 if __name__ == "__main__":
     a = sys.argv[1:]
-    medir(a[0] if a else "qwen3:4b", len(a) > 1 and a[1] == "pensar")
+    medir(a[0] if a else MODELO, len(a) > 1 and a[1] == "pensar")

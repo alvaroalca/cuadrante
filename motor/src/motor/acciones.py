@@ -248,22 +248,17 @@ def ver_incumplimientos(e: Estado, hoy: date) -> Resultado:
     return Resultado(f"{len(incs)} incumplimientos o huecos:\n" + "\n".join(lineas), e)
 
 
-def explicar_regla(e: Estado, hoy: date, tema: str = "") -> Resultado:
-    """Las reglas del convenio activo y del Estatuto que más palabras comparten con el tema."""
+def explicar_regla(e: Estado, hoy: date, tipo: str = "") -> Resultado:
+    """Las reglas del convenio activo y del Estatuto del tipo que elige el modelo de un enum. Buscar
+    por palabras fallaba: «horas entre turnos» no llegaba al ET 34.3."""
     ctx = contexto(e.boe)
-    palabras = {w for w in re.findall(r"\w+", normal(tema)) if len(w) > 3}
-    raices = {w[:5] for w in palabras}
-    def puntos(r: Regla) -> int:
-        texto = normal(f"{r.tipo} {r.descripcion or ''} {r.cita.texto}")
-        return sum(1 for w in raices if w in texto)
-    reglas = sorted(ctx.reglas, key=puntos, reverse=True)
-    mejores = [r for r in reglas[:3] if puntos(r) > 0]
-    if not mejores:
-        return Resultado("No encuentro una regla sobre eso en el convenio activo ni en el Estatuto.", e)
+    reglas = [r for r in ctx.reglas if r.tipo == tipo]
+    if not reglas:
+        return Resultado("Ni el convenio activo ni el Estatuto tienen una regla de ese tipo que se aplique aquí.", e)
     pacto = {"no": "No se puede pactar.", "individual": "Se puede pactar con la persona.", "colectivo": "Solo con acuerdo colectivo."}
-    return Resultado(f"Lo que dicen el convenio y el Estatuto sobre «{tema}»:\n" + "\n".join(
+    return Resultado("Lo que dicen el convenio y el Estatuto:\n" + "\n".join(
         f"- {r.cita.articulo if r.origen == 'estatuto' else 'art. ' + r.cita.articulo}: «{r.cita.texto}» {pacto[r.pactable]}"
-        for r in mejores), e)
+        for r in reglas), e)
 
 
 def marcar_ausencia(e: Estado, hoy: date, persona: str = "", dia: str = "hoy", hasta_dia: str = "", horas_: str = "",
@@ -336,6 +331,8 @@ def _editar(e: Estado, celdas: dict[tuple[str, int], tuple[int, int] | None], co
         "cuadrante": listas(nuevo), "clases": clases,
         "acuerdos": e.acuerdos + [Acuerdo(persona=i.persona, tipo=str(i.tipo), dias=list(i.dias), mensaje=i.mensaje) for i in pactados]})
     texto = f"Hecho: {que}." + (" Queda registrado el acuerdo de la persona." if pactados else "")
+    # Ya aplicado, el nivel solo dice si quedan avisos: con "acuerdo" la web volvía a pedirlo.
+    nivel = "aviso" if any(i.nivel == "aviso" for i in nuevos) else None
     if nivel == "aviso":
         texto += f" Avisos:\n{detalle('aviso')}"
     return Resultado(texto, estado, cambio=True, resaltar=list(celdas), nivel=nivel, incidencias=nuevos, ir_a=ir)
