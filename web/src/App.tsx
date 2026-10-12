@@ -163,7 +163,7 @@ export default function App() {
     function tecla(e: KeyboardEvent) {
       const a = document.activeElement
       const enCampo = a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement
-      if (enCampo || editor || pendiente || ausencia || elegir || !estado || !hoja) return
+      if (e.defaultPrevented || enCampo || editor || pendiente || ausencia || elegir || !estado || !hoja) return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (historial.length) accion('deshacer', {}); return }
       if (!seleccion || e.ctrlKey || e.metaKey || e.altKey) return
       const personas = hoja.plantilla.map(p => p.nombre)
@@ -273,8 +273,9 @@ export default function App() {
           onChange={e => setEditor({ ...editor, texto: e.target.value })}
           onBlur={() => setEditor(null)}
           onKeyDown={e => {
-            if (e.key === 'Escape') setEditor(null)
-            if (e.key === 'Enter') { const { s, texto } = editor; setEditor(null); cambiarTurno(s, texto) }
+            // preventDefault: que el atajo global de la hoja (Intro edita la celda) no lo reabra
+            if (e.key === 'Escape') { e.preventDefault(); setEditor(null) }
+            if (e.key === 'Enter') { e.preventDefault(); const { s, texto } = editor; setEditor(null); cambiarTurno(s, texto) }
           }} />
       )}
 

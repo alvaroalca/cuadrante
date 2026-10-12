@@ -74,8 +74,12 @@
 - No eran fallos: Paula cubre la baja de Luis entera con 8 días de aviso porque se puede redistribuir (ET 34.2); una hora de Luis el viernes 13 por la tarde no se cubre porque hay 5 personas para 4 de cobertura.
 - UI (decisiones de Álvaro): «Hoy es» fuera de la barra, la demo vive el lunes 9/11 (`HOY` en `App.tsx`) y el aviso de cada ausencia se elige en su diálogo. Semanas con número ISO («Semana 46 · 9–15 nov»), botones de día con número, y título del día o la semana que se está tocando encima de la rejilla. Semana en rejilla densa (filas de 30 px, la celda solo con el turno y una barra vertical con la clase de sus horas, libre en blanco, fin de semana sombreado). Cobertura como segunda fila de la cabecera, fija al hacer scroll: gris mientras está cubierta, roja donde falta (tira de 24 h por día en la semana, hay/hacen falta por hora en el día).
 
+- Celda trabajada con tinte de su clase de hora y fin de semana libre en gris más oscuro (Álvaro).
+- Arreglos al grabar el reel: «hasta el jueves» sin día de inicio se leía como solo el jueves (ahora `dia` es «hoy»; el banco no lo cazaba porque solo mira `hasta_dia`); el Intro que cerraba el editor de celda lo reabría vacío por el atajo global de la hoja. El autoreload de uvicorn en Windows no siempre recoge los cambios: tras tocar el motor, reiniciarlo.
+- **Reel** en `C:\Mis Proyectos\promo-videos\cuadrante` (22,2 s, 793 KB): apertura, la baja con faltas en el chat, la misma baja bajo los tres convenios (contact center deja 1 h sin cubrir), el acuerdo de Marta (art. 23) y cierre. Cifras estampadas desde `footage/marks.json` y el repo. **Ficha** `/projects/cuadrante/` en «01 · Software a medida» de la web, rama `dev` sin commit.
+
 **Pendiente:**
-1. Segunda ronda del smoke test de Álvaro.
+1. Commit y push de la web; repo público y enlace a GitHub en la ficha.
 2. Guion del reel: elegir las frases que se graban (la baja de Marta el jueves no mueve a nadie en contact center; la de Luis el martes 10 en dependencia sí reparte horas).
 
 ## Siguiente

@@ -45,7 +45,7 @@ HERRAMIENTAS = [
     herramienta("explicar_regla", "Explica con su cita lo que dicen el convenio activo y el Estatuto sobre un tipo de regla (descanso entre turnos, días libres, días seguidos, horas por día, nocturnidad, preaviso...).",
                 {"tipo": {"type": "string", "enum": [t.value for t in TipoRegla if t != TipoRegla.OTRA]}}, ["tipo"]),
     herramienta("marcar_ausencia", "Marca que una persona falta (baja, médico, vacaciones...) y busca quién la cubre sin saltarse el convenio.",
-                {"persona": PERSONA, "dia": DIA,
+                {"persona": PERSONA, "dia": {**DIA, "description": "Primer día. Si solo dice hasta cuándo ('de baja hasta el viernes'), es 'hoy'."},
                  "hasta_dia": {**DIA, "description": "Último día si son varios: 'hasta el viernes' da 'viernes'."},
                  "horas": {"type": "string", "description": "Solo si no falta el día entero: '9-11', 'mañana', 'tarde', 'desde las 18'."},
                  "motivo": {"type": "string", "enum": ["baja", "cita médica", "examen", "asunto propio", "vacaciones", "otro"]}},
